@@ -1,0 +1,34 @@
+name: ${ECC_NATIVE_NAME:-ecc-native}
+services:
+  native:
+    image: ecc-native:codex-0.159.2-ecc-2.2.3
+    container_name: ${ECC_NATIVE_NAME:-ecc-native}
+    build:
+      context: .
+    user: node
+    working_dir: /workspace/project
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 512
+    shm_size: 256m
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,exec,size=2g,uid=1000,gid=1000,mode=1777
+    volumes:
+      - native-home:/home/node
+      - type: bind
+        source: ${ECC_SOURCE_DIR:?Set ECC_SOURCE_DIR to the pinned clean checkout}
+        target: /opt/ecc-source
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${ECC_PROJECT_DIR:?Set ECC_PROJECT_DIR to the existing project}
+        target: /workspace/project
+        bind:
+          create_host_path: false
+    command: [sleep, infinity]
+volumes:
+  native-home:
+    name: ${ECC_NATIVE_HOME_VOLUME:-ecc-native-home}
