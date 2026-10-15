@@ -130,6 +130,7 @@ const cacheManifestWithLocalRefs = {
   version: packageVersion,
   skills: './skills/',
   mcpServers: './.mcp.json',
+  hooks: './hooks/codex-hooks.json',
   interface: {
     composerIcon: './assets/ecc-icon.svg',
     logo: './assets/hero.png',
@@ -659,6 +660,7 @@ if (
       assert.match(result.stdout, /Plugin cache:/);
       assert.match(result.stdout, /\[FAIL\] skills missing/);
       assert.match(result.stdout, /\[FAIL\] mcpServers missing/);
+      assert.match(result.stdout, /\[FAIL\] hooks missing/);
       assert.match(result.stdout, /codex plugin list only confirms marketplace registration/);
       assert.match(result.stdout, /sync-ecc-to-codex\.sh/);
     } finally {
@@ -669,23 +671,60 @@ if (
   passed++;
 else failed++;
 
+for (const targetKind of ['missing', 'directory']) {
+  if (
+    test(`check-plugin-cache rejects a ${targetKind} hooks file`, () => {
+      const homeDir = createTempDir('codex-plugin-cache-hooks-home-');
+      const codexDir = path.join(homeDir, '.codex');
+
+      try {
+        const cacheDir = seedPluginCache(codexDir, {
+          name: 'ecc',
+          version: packageVersion,
+          hooks: './hooks/codex-hooks.json',
+        });
+        if (targetKind === 'directory') {
+          fs.mkdirSync(path.join(cacheDir, 'hooks', 'codex-hooks.json'), { recursive: true });
+        }
+
+        const result = runNode(
+          pluginCacheCheckScript,
+          ['--plugin-dir', cacheDir],
+          makeHermeticCodexEnv(homeDir, codexDir)
+        );
+
+        assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+        assert.match(result.stdout, /\[FAIL\] hooks missing/);
+        assert.doesNotMatch(result.stdout, /All cached manifest references resolve/);
+      } finally {
+        cleanup(homeDir);
+      }
+    })
+  )
+    passed++;
+  else failed++;
+}
+
 if (
   test('check-plugin-cache rejects manifest references that escape the cache boundary', () => {
     const homeDir = createTempDir('codex-plugin-cache-manifest-traversal-home-');
     const codexDir = path.join(homeDir, '.codex');
 
     try {
-      seedPluginCache(codexDir, {
+      const cacheDir = seedPluginCache(codexDir, {
         name: 'ecc',
         version: packageVersion,
         skills: '../../../../../etc/passwd',
         mcpServers: '../../.mcp.json',
+        hooks: '../outside-hooks.json',
       });
+      fs.writeFileSync(path.join(cacheDir, '..', 'outside-hooks.json'), '{"hooks":{}}\n');
       const result = runNode(pluginCacheCheckScript, [], makeHermeticCodexEnv(homeDir, codexDir));
 
       assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
       assert.match(result.stdout, /\[FAIL\] skills escapes cache boundary/);
       assert.match(result.stdout, /\[FAIL\] mcpServers escapes cache boundary/);
+      assert.match(result.stdout, /\[FAIL\] hooks escapes cache boundary/);
       assert.doesNotMatch(result.stdout, /etc\/passwd/);
     } finally {
       cleanup(homeDir);
@@ -703,6 +742,7 @@ if (
     try {
       const cacheDir = seedPluginCache(codexDir, cacheManifestWithLocalRefs, [
         ['.mcp.json', '{"mcpServers":{}}\n'],
+        ['hooks/codex-hooks.json', '{"hooks":{}}\n'],
         ['assets/ecc-icon.svg', '<svg />\n'],
         ['assets/hero.png', 'png\n'],
       ]);
@@ -713,6 +753,7 @@ if (
       assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
       assert.match(result.stdout, /\[OK\] skills/);
       assert.match(result.stdout, /\[OK\] mcpServers/);
+      assert.match(result.stdout, /\[OK\] hooks/);
       assert.match(result.stdout, /All cached manifest references resolve/);
     } finally {
       cleanup(homeDir);
