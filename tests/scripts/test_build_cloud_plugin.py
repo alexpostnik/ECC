@@ -162,6 +162,13 @@ class CloudPluginBuilderTests(unittest.TestCase):
         with self.build() as archive:
             self.assertIn("ecc-cloud/plugin.json", archive.namelist())
 
+    def test_upstream_version_is_read_from_head_not_dirty_package_json(self):
+        self.write("package.json", json.dumps({"version": "99.0.0"}))
+        self.git("add", "--", "package.json")
+        with self.build() as archive:
+            source = json.loads(archive.read(REFERENCE_ROOT + "source.json"))
+            self.assertEqual(source["upstream_version"], "2.2.3")
+
     def test_rejects_tracked_symlink(self):
         (self.source / "skills/sample/link.md").symlink_to(self.source / "LICENSE")
         self.commit()
@@ -225,6 +232,14 @@ class CloudPluginBuilderTests(unittest.TestCase):
         result = self.run_builder(source=self.source / "skills")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("repository root", result.stderr.lower())
+
+    def test_rejects_output_alias_pointing_inside_source(self):
+        alias = self.base / "source-alias"
+        alias.symlink_to(self.source, target_is_directory=True)
+        result = self.run_builder(output=alias / "overwrite.zip")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("outside", result.stderr.lower())
+        self.assertFalse((self.source / "overwrite.zip").exists())
 
     def test_failed_build_preserves_preexisting_output(self):
         self.output.parent.mkdir()
