@@ -102,7 +102,7 @@ class CloudPluginBuilderTests(unittest.TestCase):
             names = archive.namelist()
             self.assertEqual(names, sorted(names))
             self.assertTrue(all(name.startswith("ecc-cloud/") for name in names))
-            self.assertEqual(len(names), 13)  # five static, six corpus, two generated
+            self.assertEqual(len(names), 14)  # five static, six corpus, three generated
             for relative in ("LICENSE", "skills/sample/SKILL.md", "skills/sample/helper.py",
                              "skills/sample/.gitignore", "agents/reviewer.md", "rules/common/testing.md"):
                 self.assertEqual(archive.read(REFERENCE_ROOT + "upstream/" + relative),
@@ -115,7 +115,8 @@ class CloudPluginBuilderTests(unittest.TestCase):
                 name.removeprefix("ecc-cloud/"): hashlib.sha256(archive.read(name)).hexdigest()
                 for name in names
                 if not name.startswith(REFERENCE_ROOT + "upstream/")
-                and name not in (REFERENCE_ROOT + "source.json", REFERENCE_ROOT + "catalog.json")
+                and name not in (REFERENCE_ROOT + "source.json", REFERENCE_ROOT + "catalog.json",
+                                 REFERENCE_ROOT + "release.json")
             })
             self.assertEqual(source["corpus_sha256"], {
                 name.removeprefix(REFERENCE_ROOT + "upstream/"):
@@ -131,6 +132,37 @@ class CloudPluginBuilderTests(unittest.TestCase):
             self.assertTrue(all(item.date_time == (1980, 1, 1, 0, 0, 0) for item in archive.infolist()))
             self.assertTrue(all(item.external_attr >> 16 == 0o100644 for item in archive.infolist()))
         self.assertEqual(self.snapshot(), before)
+
+    def test_release_summary_is_small_and_agrees_with_integrity_manifest(self):
+        for index in range(80):
+            self.write(f"skills/extra-{index:03d}/SKILL.md", f"Skill fixture {index}\n")
+        self.commit()
+        with self.build() as archive:
+            raw = archive.read(REFERENCE_ROOT + "release.json")
+            release = json.loads(raw)
+            source_raw = archive.read(REFERENCE_ROOT + release["integrity_manifest"])
+            source = json.loads(source_raw)
+            manifest = json.loads(archive.read("ecc-cloud/plugin.json"))
+            self.assertLess(len(raw), 2048)
+            self.assertGreater(len(source_raw), 10000)
+            self.assertEqual(release, {
+                "git_head": self.git("rev-parse", "HEAD"),
+                "fork_url": manifest["repository"],
+                "upstream_url": "https://github.com/affaan-m/ECC",
+                "upstream_version": "2.2.3",
+                "plugin_version": manifest["version"],
+                "counts": source["counts"],
+                "integrity_manifest": "source.json",
+                "catalog": "catalog.json",
+            })
+            self.assertEqual(source["counts"]["skills"], 81)
+            self.assertEqual(set(source), {
+                "git_head", "fork_url", "upstream_version", "counts", "static_sha256", "corpus_sha256",
+            })
+            for field in ("git_head", "fork_url", "upstream_version"):
+                self.assertEqual(release[field], source[field])
+            catalog = json.loads(archive.read(REFERENCE_ROOT + release["catalog"]))
+            self.assertEqual(len(catalog), release["counts"]["skills"])
 
     def test_rebuild_is_byte_identical_despite_file_times_and_output_location(self):
         with self.build():
@@ -159,7 +191,7 @@ class CloudPluginBuilderTests(unittest.TestCase):
         self.write(STATIC_ROOT / "unexpected.py", "Not part of the explicit template\n")
         with self.build() as archive:
             names = archive.namelist()
-            self.assertEqual(len(names), 13)
+            self.assertEqual(len(names), 14)
             self.assertFalse(any("must stay outside" in archive.read(name).decode() for name in names))
 
     def test_explicit_static_template_can_be_untracked(self):
