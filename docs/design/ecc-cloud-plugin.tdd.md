@@ -75,7 +75,14 @@ applied verification-loop to the real builder task: all 18 focused tests passed.
 This verifies discovery, resource reading, and practical workflow use separately
 from the owner's API readback and the earlier manual use of ECC instructions.
 
-The already-running root context still returned empty skill lists and rejected
-reading the package as unavailable. Acceptance is therefore scoped to the
-refreshed verification agent, not every context. See the
-[current status](../CODEX-CLOUD-STATUS.md).
+During that turn, the already-running root context returned empty skill lists
+and rejected reading the package as unavailable. After the user's next message,
+the root context also discovered `ecc-cloud:ecc` and read its entry, source,
+runtime, planner, and verification-loop through the skill reader. It applied
+those workflows to the Codex documentation synchronization, with 20 focused
+tests passing. No plugin recreation was required. Later in that same turn,
+the final discovery check again returned an empty cloud skill list and reading
+the package failed with `skill package is not available`. Successful workflow
+use is established, but stable availability is not. The exact refresh mechanism
+and cause of the repeated loss of access remain unknown; issue #2 stays open.
+See the [current status](../CODEX-CLOUD-STATUS.md).
