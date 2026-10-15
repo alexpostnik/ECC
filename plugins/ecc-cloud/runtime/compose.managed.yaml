@@ -1,0 +1,24 @@
+services:
+  native:
+    build:
+      secrets: [proxy_ca, system_ca]
+    environment:
+      NODE_EXTRA_CA_CERTS: /run/proxy-ca.pem
+      SSL_CERT_FILE: /run/system-ca.pem
+      GIT_SSL_CAINFO: /run/system-ca.pem
+    volumes:
+      - type: bind
+        source: ${CODEX_PROXY_CERT:?Managed proxy certificate path is required}
+        target: /run/proxy-ca.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/ssl/certs/ca-certificates.crt
+        target: /run/system-ca.pem
+        read_only: true
+secrets:
+  proxy_ca:
+    file: ${CODEX_PROXY_CERT:?Managed proxy certificate path is required}
+  system_ca:
+    file: /etc/ssl/certs/ca-certificates.crt

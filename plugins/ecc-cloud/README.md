@@ -44,6 +44,12 @@ applicable common and language rules; this guides the agent without installing
 automatic enforcement. A project workspace is required for code execution.
 If a skill needs an unavailable integration, the agent reports the affected step.
 
+For native Codex hooks, local browser MCP, and persistent ECC memory, the full fork
+also provides `plugins/ecc-cloud/runtime/README.md`. A new cloud
+conversation can discover and reuse that installation through the router's
+runtime instructions. Selecting this cloud package does not itself provision a
+container or transfer the conversation's authentication to Codex CLI.
+
 ## Provenance and verification
 
 Version 0.1.1 starts from `skills/ecc/references/release.json`: a short summary
