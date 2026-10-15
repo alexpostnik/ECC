@@ -68,12 +68,37 @@ A successful `login status` only confirms local credential presence; a real
 model request verifies remote authorization. Diagnose a 401 before explicitly
 replacing credentials. Do not copy managed host credentials or commit a profile.
 
+The official device flow requires device code login to be enabled in the account's
+web settings. Open `https://chatgpt.com` in a browser, then Settings → Security
+and login; the native Mac application's settings can differ. For a managed
+workspace, an administrator controls the relevant workspace permission. The
+device page is `https://auth.openai.com/codex/device`; enter the newly issued
+code there, not in a chat. Codes expire after 15 minutes.
+
 For an agent's noninteractive task, pass the ordinary Codex arguments:
 
 ```bash
 bash ecc-native.sh managed run exec \
   'Use the ECC verification-loop skill to inspect this project and report the relevant checks.'
 ```
+
+On the verified managed host, nested user namespaces are unavailable: ordinary
+shell commands initially fail with `bwrap: No permissions to create a new
+namespace`. Headless `exec` defaults to approval policy `never`. Where authorized
+for the particular task, Codex 0.159.2 provides a supported one-run alternative:
+
+```bash
+bash ecc-native.sh managed run exec --approve-for-me \
+  'Use ECC to verify the current diff and run its focused tests.'
+```
+
+`--approve-for-me` uses `workspace-write`, approval policy `on-request`, and
+reviewer `auto_review`; individual escalation requests are reviewed. It does not
+write those settings to the profile or fix nested user namespaces. Do not combine
+this option with `--sandbox`, disable container isolation, or change host sysctls.
+Permanent approval settings require the owner's separate authorization. The
+deployment's attempt to save permanent defaults was rejected by automatic review;
+the profile remains unchanged. No launcher default silently enables this mode.
 
 For an interactive terminal, use the matching Docker context/socket:
 
