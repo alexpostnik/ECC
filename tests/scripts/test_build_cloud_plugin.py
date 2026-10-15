@@ -4,12 +4,12 @@
 import hashlib
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
 import zipfile
+from pathlib import Path
 
 
 BUILDER = Path(__file__).resolve().parents[2] / "scripts/codex/build-cloud-plugin.py"
@@ -116,6 +116,11 @@ class CloudPluginBuilderTests(unittest.TestCase):
                 for name in names
                 if not name.startswith(REFERENCE_ROOT + "upstream/")
                 and name not in (REFERENCE_ROOT + "source.json", REFERENCE_ROOT + "catalog.json")
+            })
+            self.assertEqual(source["corpus_sha256"], {
+                name.removeprefix(REFERENCE_ROOT + "upstream/"):
+                    hashlib.sha256(archive.read(name)).hexdigest()
+                for name in names if name.startswith(REFERENCE_ROOT + "upstream/")
             })
             self.assertEqual(source["counts"], {
                 "skills": 1, "skill_files": 3, "agent_files": 1,
