@@ -1,6 +1,28 @@
 # ECC в облачной сессии Codex
 
-## Что подготовлено
+## Текущий результат аудита — 15 октября 2026
+
+Опубликован **ECC Cloud 0.1.2**, source commit `9b0ce73df3ae167e63385eafbae3e99d9f224dcb`.
+Рабочая ветка: `work/deployment-audit`. Полный [отчёт и порядок дальнейшей работы](CODEX-DEPLOYMENT-AUDIT.md)
+разделяют Cloud workflows, официальную native-установку и непроверенные возможности.
+
+- Исправлены запуск с компактного `release.json` и обязательный выбор применимых
+  общих/языковых правил перед изменением кода и ревью.
+- 19/19 тестов упаковки; покрытие исполняемых строк сборщика 153/161 (95,0%).
+- Проверены хеши 807 исходных references; сохранённые entry, release, runtime,
+  source, catalog, README и icon побайтно совпали с исходным ZIP.
+- Новый агент без истории беседы обнаружил 0.1.2 штатным discovery, прочитал
+  common/Python rules, code-reviewer и verification-loop и выполнил 19/19 тестов.
+- Новый CI сборки/целостности прошёл на [GitHub Actions](https://github.com/alexpostnik/ECC/actions/runs/38797374533).
+- Native профиль облака остаётся read-only. Hooks/MCP/memory не установлены
+  этим пакетом; native deployment на Mac требует отдельной проверки.
+- Повторное исчезновение навыков в основном контексте зафиксировано в #2.
+  Успешный холодный старт не закрывает вопрос стабильности.
+
+Результат полного `npm test` и разбор его ошибок приведены в отчёте аудита.
+Ниже сохранена история предыдущей версии; её результаты не подменяют новую приёмку.
+
+## Исходная установка 0.1.0
 
 - Рабочее окружение остаётся в существующем облаке Codex.
 - Форк: `alexpostnik/ECC`, ветка `work/cloud-setup`.
@@ -63,6 +85,9 @@ Markdown lint, сверка копий и `git diff --check` прошли. `npm 
 | [#3: Отставание Codex-инструкций](https://github.com/alexpostnik/ECC/issues/3) | Исправлено в [df51bccd](https://github.com/alexpostnik/ECC/commit/df51bccdfc1d93b35e9a0cae3eadf20c6c40f2e8); 20/20 тестов, ревью без замечаний | Изолированный commit пригоден для отдельного contribution; слияние и upstream-публикация не выполнялись |
 | [#4: Guided setup проверяет официальный origin](https://github.com/alexpostnik/ECC/issues/4) | Код выдаёт MARKETPLACE_COLLISION для другого источника | Уточнить отдельный supported fork workflow, сохранив provenance checks |
 | GitHub Issues были выключены | Владелец включил; GET has_issues=true, четыре задачи опубликованы | Прежние 403/410 больше не блокируют создание issues |
+| [#5: Cache checker пропускает hooks](https://github.com/alexpostnik/ECC/issues/5) | Воспроизведён exit 0 при отсутствующем manifest.hooks; контроль без skills — exit 1 | Узкое исправление валидатора с регрессионным тестом |
+| [#6: Устаревшие capability docs](https://github.com/alexpostnik/ECC/issues/6) | Подтверждены расхождения docs/catalog с native SessionStart и текущими MCP/skills | Отдельное исправление upstream-документов |
+| [#7: Полный suite в managed cloud](https://github.com/alexpostnik/ECC/issues/7) | Exit 1: 7721 passed, 68 failed; часть причин подтверждена, часть требует проверки | Разделить изоляцию tests, Git-root detection и lifecycle; не считать весь suite успешным |
 
 [Сохранённые тексты четырёх issues](drafts/codex-cloud-issues.md).
 
