@@ -1,0 +1,11 @@
+{
+  "name": "ECC contribution workspace",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "remoteUser": "node",
+  "updateRemoteUserUID": true,
+  "init": true,
+  "postCreateCommand": "corepack yarn install --immutable --mode=skip-build"
+}

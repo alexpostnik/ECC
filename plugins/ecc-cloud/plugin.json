@@ -1,0 +1,30 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ecc-cloud",
+  "version": "0.1.2",
+  "description": "Private cloud adaptation of ECC from alexpostnik/ECC: a workflow router with the original skills, agent guidance, and coding rules as supporting references.",
+  "author": { "name": "Alex Post; upstream ECC by Affaan Mustafa and contributors" },
+  "repository": "https://github.com/alexpostnik/ECC",
+  "license": "MIT",
+  "keywords": ["ecc", "codex", "planning", "tdd", "code-review", "verification"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ECC Cloud",
+        "shortDescription": "ECC workflows in Codex cloud",
+        "longDescription": "Use ECC's original workflows from your fork in a managed cloud conversation. The ECC entry skill routes planning, test-driven development, review, verification, and domain requests to a pinned collection of upstream skills and agent guidance. It uses the conversation's available tools. Native CLI hooks, automatic memory collection, and local MCP servers are not activated by this package.",
+        "developerName": "Alex Post / ECC contributors",
+        "category": "Coding",
+        "capabilities": ["Interactive"],
+        "brandColor": "#E07856",
+        "composerIcon": "./assets/ecc-icon.svg",
+        "logo": "./assets/ecc-icon.svg",
+        "defaultPrompt": [
+          "Use ECC to inspect my project and plan the next change.",
+          "Use ECC's TDD workflow to implement this change.",
+          "Use ECC to review and verify the current changes."
+        ]
+      }
+    }
+  }
+}
