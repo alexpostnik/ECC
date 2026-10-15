@@ -3,17 +3,19 @@ set -euo pipefail
 recipe_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 source_pin=d50cf128d5ee8bf8e67241910d2dfc20779ba5e0
 usage() {
-  echo 'Usage: ecc-native.sh managed|docker config|build|up|install|status|login|run [Codex arguments]'
+  echo 'Usage: ecc-native.sh managed|docker config|build|up|install|status|login|run|browser [Codex arguments]'
   echo 'Set ECC_SOURCE_DIR (clean pinned checkout) and ECC_PROJECT_DIR (existing project).'
   echo 'Optional: ECC_NATIVE_NAME=ecc-native, ECC_NATIVE_HOME_VOLUME=ecc-native-home.'
+  echo 'Browser: managed mode only; ECC_NATIVE_BROWSER_NAME defaults to ecc-browser.'
 }
 fail() { echo "$*" >&2; exit 1; }
 if [[ $# -lt 2 ]]; then usage; exit 2; fi
 mode=$1; action=$2; shift 2
 case "$mode" in managed|docker) ;; *) usage; exit 2 ;; esac
-case "$action" in config|build|up|install|status|login|run) ;; *) usage; exit 2 ;; esac
+case "$action" in config|build|up|install|status|login|run|browser) ;; *) usage; exit 2 ;; esac
 [[ "$action" == run || $# == 0 ]] || { usage; exit 2; }
 [[ "$action" != run || $# -gt 0 ]] || { echo 'Use run exec <prompt>; interactive sessions need a terminal.' >&2; exit 2; }
+[[ "$action" != browser || "$mode" == managed ]] || fail 'Browser setup requires managed mode with its proxy and CA.'
 : "${ECC_SOURCE_DIR:?Set ECC_SOURCE_DIR to a clean checkout of the pinned revision}"
 : "${ECC_PROJECT_DIR:?Set ECC_PROJECT_DIR to your existing project}"
 [[ -d "$ECC_SOURCE_DIR" && -d "$ECC_PROJECT_DIR" ]] || fail 'Source and project directories must already exist.'
@@ -21,8 +23,10 @@ export ECC_SOURCE_DIR=$(cd -- "$ECC_SOURCE_DIR" && pwd -P)
 export ECC_PROJECT_DIR=$(cd -- "$ECC_PROJECT_DIR" && pwd -P)
 export ECC_NATIVE_NAME=${ECC_NATIVE_NAME:-ecc-native}
 export ECC_NATIVE_HOME_VOLUME=${ECC_NATIVE_HOME_VOLUME:-ecc-native-home}
+export ECC_NATIVE_BROWSER_NAME=${ECC_NATIVE_BROWSER_NAME:-ecc-browser}
 [[ "$ECC_NATIVE_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || fail 'Invalid ECC_NATIVE_NAME.'
 [[ "$ECC_NATIVE_HOME_VOLUME" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || fail 'Invalid ECC_NATIVE_HOME_VOLUME.'
+[[ "$ECC_NATIVE_BROWSER_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ && "$ECC_NATIVE_BROWSER_NAME" != "$ECC_NATIVE_NAME" ]] || fail 'Browser name must be valid and different from ECC_NATIVE_NAME.'
 [[ "$(git -C "$ECC_SOURCE_DIR" rev-parse HEAD)" == "$source_pin" ]] || fail "Source must be pinned to $source_pin; existing checkouts are never reset."
 [[ -z "$(git -C "$ECC_SOURCE_DIR" status --porcelain --untracked-files=all)" ]] || fail 'Source checkout must be clean, including untracked files.'
 [[ "$ECC_PROJECT_DIR" != "$ECC_SOURCE_DIR" && "$ECC_PROJECT_DIR" != "$ECC_SOURCE_DIR/"* && "$ECC_SOURCE_DIR" != "$ECC_PROJECT_DIR/"* ]] || fail 'Source and project directories must not contain each other.'
@@ -38,17 +42,20 @@ compose() { "${docker_cmd[@]}" compose "${compose_files[@]}" "$@"; }
 # Inspect only mounts, never dump container environment or authentication.
 check_existing_container() {
   "${docker_cmd[@]}" info --format '{{.ServerVersion}}' >/dev/null
-  local found mounts
-  found=$("${docker_cmd[@]}" ps -a --filter "name=^/${ECC_NATIVE_NAME}$" --format '{{.Names}}')
+  local kind=${1:-native} container_name=$ECC_NATIVE_NAME found mounts
+  if [[ "$kind" == browser ]]; then container_name=$ECC_NATIVE_BROWSER_NAME; fi
+  found=$("${docker_cmd[@]}" ps -a --filter "name=^/${container_name}$" --format '{{.Names}}')
   [[ -n "$found" ]] || return 0
-  mounts=$("${docker_cmd[@]}" inspect --format '{{json .Mounts}}' "$ECC_NATIVE_NAME")
-  python3 - "$mounts" "$ECC_SOURCE_DIR" "$ECC_PROJECT_DIR" "$ECC_NATIVE_HOME_VOLUME" "$mode" "${CODEX_PROXY_CERT:-}" <<'PY'
+  mounts=$("${docker_cmd[@]}" inspect --format '{{json .Mounts}}' "$container_name")
+  python3 - "$mounts" "$ECC_SOURCE_DIR" "$ECC_PROJECT_DIR" "$ECC_NATIVE_HOME_VOLUME" "$mode" "${CODEX_PROXY_CERT:-}" "$kind" "$recipe_dir/browser" <<'PY'
 import json
 import sys
 mounts = {item['Destination']: item for item in json.loads(sys.argv[1])}
 expected = [('/opt/ecc-source', 'bind', sys.argv[2], False),
             ('/workspace/project', 'bind', sys.argv[3], True),
             ('/home/node', 'volume', sys.argv[4], True)]
+if sys.argv[7] == 'browser':
+    expected = [('/opt/ecc-browser', 'bind', sys.argv[8], False)]
 if sys.argv[5] == 'managed':
     expected += [('/run/proxy-ca.pem', 'bind', sys.argv[6], False),
                  ('/run/system-ca.pem', 'bind', '/etc/ssl/certs/ca-certificates.crt', False)]
@@ -72,6 +79,10 @@ case "$action" in
       BUILDX_CONFIG="$ECC_BUILDX_DIR" compose build native
     else compose build native; fi ;;
   up) check_existing_container; compose up -d --no-build --no-recreate native ;;
+  browser)
+    check_existing_container browser
+    compose_files+=(-f "$recipe_dir/compose.browser.managed.yaml")
+    compose up -d --no-build --no-recreate browser ;;
   install) check_existing_container; compose exec -T native bash -s < "$recipe_dir/bootstrap.sh" ;;
   status)
     check_existing_container

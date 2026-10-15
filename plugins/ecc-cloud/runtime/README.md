@@ -123,6 +123,14 @@ official-source provenance checks.
 
 - The package includes 311 canonical skills, 71 agent guidance files and 122
   rules. Guidance files do not become autonomous registered agents automatically.
+  Bootstrap creates a concise native-profile `AGENTS.md` rule/workflow route only
+  when that file is absent; existing owner guidance is preserved. Verify the
+  resulting instruction chain with `codex debug prompt-input` in a new process.
+  Codex 0.159.2 may truncate its model-visible skill catalog under this load.
+  Select needed skills explicitly from the full `skills/list` inventory (native
+  picker or app-server `UserInput::Skill`), using the returned name/path, then
+  have the agent read the complete selected `SKILL.md`. Installed inventory,
+  prompt visibility, and a complete workflow read are distinct checks.
 - Native hooks require Codex's supported trust/enablement flow; the pinned
   manifest provides `SessionStart`. Do not fabricate trust hashes or claim full
   Claude lifecycle parity.
@@ -144,3 +152,53 @@ replaced cloud VM may have neither that volume nor the project. Arrange an
 owner-approved encrypted backup/restore separately if cross-VM persistence is
 required; the recipe makes no automatic backup or cross-task survival promise.
 Never commit `auth.json`, profile archives, device codes, or private receipts.
+
+## Managed browser and memory
+
+The verified managed deployment keeps Chromium in a separate container without
+the agent profile or project mounts. Its debugger is reachable only on the
+private Compose network; there are no published host ports. The browser runs
+as `node` with a read-only root filesystem, all capabilities dropped, and
+`no-new-privileges`. This host disallows Chromium's user-namespace sandbox, so
+`--no-sandbox` is confined to that browser-only container. The Docker isolation
+and managed network controls remain in force. Do not attach credentials or
+project files to it, add privileged capabilities, or expose its debugger.
+
+After building the image and starting native, start the separate browser:
+
+```bash
+bash ecc-native.sh managed browser
+```
+
+This overlay requires the managed proxy and CA. The browser imports that CA into
+an ephemeral NSS database; it does not disable TLS verification. The browser
+overlay is verified for this managed host, not for every Docker Desktop setup.
+Run these supported configuration commands inside the native container once:
+
+```bash
+codex mcp add chrome-devtools -- \
+  /usr/local/bin/chrome-devtools-mcp --browserUrl=http://browser:9222 \
+  --no-usage-statistics --no-performance-crux
+
+ecc memory init --scope project
+codex mcp add ecc-memory-vault \
+  --env ECC_MEMORY_HARNESS=codex \
+  --env ECC_MEMORY_PROJECT_ROOT=/workspace/project/.ecc/memory \
+  -- /usr/local/bin/ecc-memory-mcp
+```
+
+Inspect existing MCP registrations first; retain equivalent entries. The
+`chrome-devtools` user override uses the already installed pinned binary and
+leaves the plugin cache unchanged. `ECC_MEMORY_PROJECT_ROOT` is the vault base,
+not the repository root. Keep `.ecc/memory/project` private as initialized by ECC.
+Verify browser navigation, snapshot and page content, then memory save, search,
+read and doctor through the real native MCP tools in a new session.
+
+For hooks, review the installed `hooks/codex-hooks.json` and its referenced
+runtime, then trust the selected SessionStart handler in `/hooks`. An app-server
+client can use the same supported flow as the pinned TUI: obtain `key` and
+`currentHash` from `hooks/list`, write that selected key's `trusted_hash` and
+`enabled=true` under `hooks.state` with `config/batchWrite`, and recheck
+`trustStatus=trusted`. Do not synthesize hashes or trust unrelated hooks. Observe
+`hook/started` and `hook/completed` on the first actual turn; `thread/start`
+alone does not run the handler. Re-review changed hooks after any upgrade.

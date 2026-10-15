@@ -9,7 +9,7 @@ RUN --mount=type=secret,id=proxy_ca \
     fi \
     && apt-get update \
     && apt-get install --yes --no-install-recommends \
-      bash ca-certificates chromium diffutils git jq python3 python3-venv ripgrep \
+      bash ca-certificates chromium diffutils git jq libnss3-tools python3 python3-venv ripgrep \
     && rm -f /etc/apt/apt.conf.d/99-ecc-ca \
     && rm -rf /var/lib/apt/lists/*
 
