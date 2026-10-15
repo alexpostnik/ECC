@@ -687,7 +687,11 @@ for (const targetKind of ['missing', 'directory']) {
           fs.mkdirSync(path.join(cacheDir, 'hooks', 'codex-hooks.json'), { recursive: true });
         }
 
-        const result = runNode(pluginCacheCheckScript, [], makeHermeticCodexEnv(homeDir, codexDir));
+        const result = runNode(
+          pluginCacheCheckScript,
+          ['--plugin-dir', cacheDir],
+          makeHermeticCodexEnv(homeDir, codexDir)
+        );
 
         assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
         assert.match(result.stdout, /\[FAIL\] hooks missing/);
