@@ -1,0 +1,87 @@
+name: ECC Cloud
+
+on:
+  pull_request:
+  push:
+    branches: [main, work/cloud-setup, work/deployment-audit]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Cloud package tests and integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Test cloud package builder
+        run: python3 -m unittest discover -s tests/scripts -p 'test_build_cloud_plugin.py' -v
+
+      - name: Build cloud package from the checked-out source
+        run: python3 scripts/codex/build-cloud-plugin.py --output "$RUNNER_TEMP/ecc-cloud.zip"
+
+      - name: Verify archive integrity and source provenance
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import subprocess
+          import zipfile
+          from pathlib import Path
+
+          archive_path = Path(os.environ["RUNNER_TEMP"]) / "ecc-cloud.zip"
+          root = "ecc-cloud/"
+          references = root + "skills/ecc/references/"
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          with zipfile.ZipFile(archive_path) as archive:
+              names = archive.namelist()
+              if len(names) != len(set(names)) or archive.testzip() is not None:
+                  raise SystemExit("Archive contains duplicate or corrupt entries")
+              source = json.loads(archive.read(references + "source.json"))
+              if source["git_head"] != head:
+                  raise SystemExit("Archive provenance does not match the checked-out commit")
+              release = json.loads(archive.read(references + "release.json"))
+              for field in ("git_head", "fork_url", "upstream_version", "counts"):
+                  if release[field] != source[field]:
+                      raise SystemExit(f"Release summary differs from source manifest: {field}")
+              if release["integrity_manifest"] != "source.json" or release["catalog"] != "catalog.json":
+                  raise SystemExit("Release summary points to unexpected reference files")
+              manifest = json.loads(archive.read(root + "plugin.json"))
+              if release["plugin_version"] != manifest["version"]:
+                  raise SystemExit("Release summary differs from plugin version")
+              catalog = json.loads(archive.read(references + "catalog.json"))
+              if len(catalog) != source["counts"]["skills"]:
+                  raise SystemExit("Catalog size differs from source manifest")
+              expected = {references + name for name in ("source.json", "catalog.json", "release.json")}
+              for prefix, hashes, source_prefix in (
+                  (root, source["static_sha256"], "plugins/ecc-cloud/"),
+                  (references + "upstream/", source["corpus_sha256"], ""),
+              ):
+                  for relative, digest in hashes.items():
+                      member = prefix + relative
+                      expected.add(member)
+                      payload = archive.read(member)
+                      if hashlib.sha256(payload).hexdigest() != digest:
+                          raise SystemExit(f"Archive hash mismatch: {member}")
+                      if payload != Path(source_prefix + relative).read_bytes():
+                          raise SystemExit(f"Source bytes differ: {member}")
+              if set(names) != expected:
+                  raise SystemExit("Archive inventory does not match its source manifest")
+              print(f"Verified {len(names)} archive entries at commit {head}")
+          PY

@@ -15,7 +15,6 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
-
 PLUGIN_NAME = "ecc-cloud"
 STATIC_ROOT = "plugins/ecc-cloud"
 STATIC_FILES = (

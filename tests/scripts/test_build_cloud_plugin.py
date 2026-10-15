@@ -11,7 +11,6 @@ import unittest
 import zipfile
 from pathlib import Path
 
-
 BUILDER = Path(__file__).resolve().parents[2] / "scripts/codex/build-cloud-plugin.py"
 STATIC_ROOT = Path("plugins/ecc-cloud")
 REFERENCE_ROOT = "ecc-cloud/skills/ecc/references/"
