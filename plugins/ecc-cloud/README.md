@@ -25,6 +25,10 @@ Save the verified archive through the host's private plugin creation workflow.
 After creation or enablement, verify that the `ecc` skill is discoverable and
 readable. Creation alone is not proof of installation or workflow execution.
 For later releases, update the same plugin using its recorded plugin ID.
+Read back the stored manifest before updating and preserve its owner metadata
+and presentation, including every default prompt. The host can normalize these
+fields on creation without normalizing them on update. Record any owner metadata
+overlay separately from the reproducible source ZIP and verify the saved result.
 
 ## Use
 
