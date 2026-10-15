@@ -47,21 +47,27 @@ Available skills:
 
 ## MCP Servers
 
-Treat the project-local `.codex/config.toml` as the default Codex baseline for ECC. The current ECC baseline enables GitHub, Context7, Exa, Memory, Playwright, and Sequential Thinking; add heavier extras in `~/.codex/config.toml` only when a task actually needs them.
+The native Codex plugin loads the repository-root `.mcp.json`, which currently
+declares one default server: `chrome-devtools`. Other connectors are opt-in;
+see `docs/MCP-CONNECTOR-POLICY.md` and `mcp-configs/mcp-servers.json`.
 
-ECC's canonical Codex section name is `[mcp_servers.context7]`. The launcher package remains `@upstash/context7-mcp`; only the TOML section name is normalized for consistency with `codex mcp list` and the reference config.
+The project-local `.codex/config.toml` defines guidance, features, and agent
+roles; it does not declare MCP servers. The separate
+`.codex/user-config.example.toml` retains existing user-install registrations.
+Review that reference before installing it; it is not the native plugin's
+default connector set.
 
-### Automatic config.toml merging
+### Legacy managed sync
 
-The sync script (`scripts/sync-ecc-to-codex.sh`) uses a Node-based TOML parser to safely merge ECC MCP servers into `~/.codex/config.toml`:
+`scripts/sync-ecc-to-codex.sh` is a separate, deprecated compatibility path,
+not native plugin installation. Its MCP merger currently manages
+`chrome-devtools`, using the configured package manager.
 
-- **Add-only by default** — missing ECC servers are appended; existing servers are never modified or removed.
-- **7 managed servers** — Supabase, Playwright, Context7, Exa, GitHub, Memory, Sequential Thinking.
-- **Canonical naming** — ECC manages Context7 as `[mcp_servers.context7]`; legacy `[mcp_servers.context7-mcp]` entries are treated as aliases during updates.
-- **Package-manager aware** — uses the project's configured package manager (npm/pnpm/yarn/bun) instead of hardcoding `pnpm`.
-- **Drift warnings** — if an existing server's config differs from the ECC recommendation, the script logs a warning.
-- **`--update-mcp`** — explicitly replaces all ECC-managed servers with the latest recommended config (safely removes subtables like `[mcp_servers.supabase.env]`).
-- **User config is always preserved** — custom servers, args, env vars, and credentials outside ECC-managed sections are never touched.
+The merger adds missing managed entries and warns about drift.
+`--update-mcp` replaces the managed entry. Other user-defined servers are
+preserved, except for the specific legacy Exa URL-only entry repaired by the
+merger. `ECC_DISABLED_MCPS` filters generated entries and removes disabled
+managed entries during sync.
 
 ## External Action Boundaries
 
