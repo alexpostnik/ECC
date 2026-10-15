@@ -35,14 +35,20 @@ Select **ECC Cloud** in the conversation and state the project and task:
 - "Use ECC to review and verify the current diff."
 
 The router selects the appropriate original files and uses the conversation's
-existing tools. A project workspace is required for code execution. If a skill
-needs an unavailable integration, the agent reports the affected step.
+existing tools. Before implementation, refactoring, or code review, it reads
+applicable common and language rules; this guides the agent without installing
+automatic enforcement. A project workspace is required for code execution.
+If a skill needs an unavailable integration, the agent reports the affected step.
 
 ## Provenance and verification
 
-The archive's `skills/ecc/references/source.json` records its source revision;
-`catalog.json` locates the included skills. Original ECC content remains under
-its MIT license and includes the upstream copyright notice.
+Version 0.1.1 starts from `skills/ecc/references/release.json`: a short summary
+of the plugin version, pinned source revision, URLs, and included file counts.
+The existing `source.json` contract retains the full provenance and file hashes
+for integrity audits; `catalog.json` is read only when locating a workflow.
+Original ECC content remains under its MIT license and includes the upstream
+copyright notice. Included references do not make every workflow executable
+without its required host tools and dependencies.
 
 Run the focused packaging checks with:
 

@@ -3,7 +3,9 @@
 This private package carries ECC's canonical skills, agent guidance, and rules
 as read-on-demand references. Their source bytes are preserved. The source
 revision, ECC version, and file hashes are recorded by the package builder.
-Read `source.json` and `catalog.json` beside this file for the actual release.
+Read the small `release.json` beside this file for the actual release. Open
+`catalog.json` only to locate a workflow, and the full `source.json` hash
+manifest only when auditing package integrity.
 
 ## What the package enables
 
@@ -47,7 +49,7 @@ the repository solely to read a workflow already in this package.
 
 When a workflow requires an executable ECC utility:
 
-1. Read `source.json` for the fork URL and pinned source revision.
+1. Read `release.json` for the fork URL and pinned source revision.
 2. Look for an existing checkout, including `/workspace/ecc-contrib` in the
    current setup. Verify its Git origin and revision before using it. Preserve
    user changes and branches; do not reset or overwrite an existing checkout.

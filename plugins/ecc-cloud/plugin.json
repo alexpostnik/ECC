@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ecc-cloud",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Private cloud adaptation of ECC from alexpostnik/ECC: a workflow router with the original skills, agent guidance, and coding rules as supporting references.",
   "author": { "name": "Alex Post; upstream ECC by Affaan Mustafa and contributors" },
   "repository": "https://github.com/alexpostnik/ECC",

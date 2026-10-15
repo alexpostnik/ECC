@@ -145,11 +145,19 @@ def assemble_files(root):
             "total_files": len(corpus),
         },
     }
+    release = {
+        **{field: source[field] for field in ("git_head", "fork_url", "upstream_version", "counts")},
+        "upstream_url": "https://github.com/affaan-m/ECC",
+        "plugin_version": manifest["version"],
+        "integrity_manifest": "source.json",
+        "catalog": "catalog.json",
+    }
     return {
         **files,
         **{REFERENCES + "upstream/" + path: content for path, content in corpus.items()},
         REFERENCES + "source.json": json_bytes(source),
         REFERENCES + "catalog.json": json_bytes(catalog),
+        REFERENCES + "release.json": json_bytes(release),
     }
 
 

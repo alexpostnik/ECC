@@ -17,12 +17,42 @@ of original ECC files as supporting references.
    and its instructions before selecting commands or changing files. Keep an
    existing cloud environment as the execution environment unless the user
    requests another one.
-2. Read [source.json](references/source.json) for the exact source revision and
-   [runtime.md](references/runtime.md) for the cloud capability boundaries.
-3. Select the smallest useful set of ECC workflows. Read the complete selected
+2. Read [release.json](references/release.json) for the short release summary
+   and [runtime.md](references/runtime.md) for the cloud capability boundaries.
+   Read the full `source.json` hash manifest only for an integrity audit.
+3. Before implementing, refactoring, or reviewing code, select and read the
+   applicable rules as described below.
+4. Select the smallest useful set of ECC workflows. Read the complete selected
    source before applying it. Mention which workflow is being used.
-4. Use the user's language. Preserve their existing authorization and choices.
+5. Use the user's language. Preserve their existing authorization and choices.
    Higher-priority host instructions and the user's request govern execution.
+
+## Select applicable rules
+
+For code implementation, refactoring, and review, this step is required before
+using the task-specific workflow. Read the [rules layering guide](references/upstream/rules/README.md),
+then load the relevant files:
+
+- Start with common [coding style](references/upstream/rules/common/coding-style.md),
+  [testing](references/upstream/rules/common/testing.md), and
+  [security](references/upstream/rules/common/security.md).
+- Before implementation or refactoring, also read the
+  [development workflow](references/upstream/rules/common/development-workflow.md),
+  including its post-change review step. Read other common rules when the task
+  needs them, such as agent orchestration for delegation or Git workflow for a PR.
+- Identify the languages and frameworks from the actual project. Read their
+  matching rule files for the selected topics under `references/upstream/rules/`
+  (for example, `golang/testing.md` for Go or `python/coding-style.md` for Python).
+  Language-specific rules override common defaults where they differ; project,
+  user, and host instructions retain their governing priority.
+
+Briefly name the selected rule sets and carry their applicable checks into the
+work and verification. Apply each rule to the requested phase: reviewing a diff
+does not authorize implementing, installing, or publishing. If no dedicated
+language rule set exists, use the common rules and a relevant domain skill.
+For other tasks, load rules only when relevant. Do not load the entire rules
+tree or skill catalog by default. Reading rules guides the work; it does not
+install automatic enforcement or hooks.
 
 ## Route to original ECC instructions
 

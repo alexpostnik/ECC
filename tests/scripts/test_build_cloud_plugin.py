@@ -134,7 +134,7 @@ class CloudPluginBuilderTests(unittest.TestCase):
         self.assertEqual(self.snapshot(), before)
 
     def test_release_summary_is_small_and_agrees_with_integrity_manifest(self):
-        for index in range(80):
+        for index in range(100):
             self.write(f"skills/extra-{index:03d}/SKILL.md", f"Skill fixture {index}\n")
         self.commit()
         with self.build() as archive:
@@ -155,7 +155,7 @@ class CloudPluginBuilderTests(unittest.TestCase):
                 "integrity_manifest": "source.json",
                 "catalog": "catalog.json",
             })
-            self.assertEqual(source["counts"]["skills"], 81)
+            self.assertEqual(source["counts"]["skills"], 101)
             self.assertEqual(set(source), {
                 "git_head", "fork_url", "upstream_version", "counts", "static_sha256", "corpus_sha256",
             })
