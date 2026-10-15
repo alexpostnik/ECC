@@ -96,9 +96,22 @@ bash ecc-native.sh managed run exec --approve-for-me \
 reviewer `auto_review`; individual escalation requests are reviewed. It does not
 write those settings to the profile or fix nested user namespaces. Do not combine
 this option with `--sandbox`, disable container isolation, or change host sysctls.
-Permanent approval settings require the owner's separate authorization. The
-deployment's attempt to save permanent defaults was rejected by automatic review;
-the profile remains unchanged. No launcher default silently enables this mode.
+Permanent approval settings require the owner's separate authorization. For this
+deployment the owner explicitly approved the following native-profile defaults
+after an initial automatic-review rejection. They were saved through version-guarded
+`config/batchWrite`, preserving all unrelated settings:
+
+```toml
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+sandbox_mode = "workspace-write"
+```
+
+A fresh ordinary `run exec` without approval flags completed `node --version`
+through the configured review flow. This applies to the retained `ecc-native`
+profile; the outer cloud profile remains unchanged. The launcher does not silently
+set these defaults on another installation. See issue #12 for the approval and
+verification history. Nested sandbox availability remains a separate limitation.
 
 For an interactive terminal, use the matching Docker context/socket:
 
