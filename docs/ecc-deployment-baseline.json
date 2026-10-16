@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-16T04:31:52Z",
+  "description": "Verified installation baseline; compare with live state, do not treat this file as a current health check.",
+  "fork": "https://github.com/alexpostnik/ECC",
+  "upstream": "https://github.com/affaan-m/ECC",
+  "cloud": {
+    "version": "0.1.3",
+    "source_commit": "a159d6edfd1e084af87ade8b42e4e0df55cc1f58",
+    "canonical_skills": 311,
+    "agent_guidance_files": 71,
+    "rule_and_guide_files": 122
+  },
+  "native": {
+    "ecc_version": "2.2.3",
+    "codex_version": "0.159.2",
+    "chrome_devtools_mcp_version": "1.10.1",
+    "source_commit": "d50cf128d5ee8bf8e67241910d2dfc20779ba5e0",
+    "container": "ecc-native",
+    "browser_container": "ecc-browser",
+    "home_volume": "ecc-native-home",
+    "project_path_inside_container": "/workspace/project",
+    "unique_ecc_skill_entries": 348,
+    "supported_verified_hook": "SessionStart",
+    "approval_policy": "on-request",
+    "approvals_reviewer": "auto_review",
+    "sandbox_mode": "workspace-write",
+    "persistent_approval_settings_owner_authorized": true
+  },
+  "upstream_observation": {
+    "date": "2026-10-16",
+    "head": "76aaa77df6adc5b889e689007bf99b9a4f74af34",
+    "ecc_latest": "2.2.3",
+    "codex_latest": "0.163.0",
+    "chrome_devtools_mcp_latest": "1.11.0",
+    "canonical_runtime_corpus_matches_native": true,
+    "latest_tool_versions_compatibility_verified": false
+  },
+  "maintenance": {
+    "monitoring_policy": "shared_mcp_and_plugin_lifecycle",
+    "ecc_specific_report_enabled": false,
+    "shared_fleet_monitoring_deployed": false,
+    "automatic_software_installation": false,
+    "report_may_change_production_or_permissions": false,
+    "cross_vm_backup_restore_verified": false,
+    "missing_runtime_host_means": "not_checked",
+    "last_real_model_acceptance_date": "2026-10-15",
+    "last_readonly_runtime_check_date": "2026-10-16"
+  }
+}
