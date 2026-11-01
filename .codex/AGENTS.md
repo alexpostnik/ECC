@@ -9,10 +9,18 @@ For repo navigation, surface ownership, and PR diff packet guidance, read
 
 | Task Type | Recommended Model |
 |-----------|------------------|
-| Routine coding, tests, formatting | GPT-6 Luna medium |
-| Complex features, architecture | GPT-6 Sol high |
-| Debugging, refactoring | GPT-6 Sol high |
-| Security review | GPT-6 Sol high |
+| Routine coding, tests, formatting | GPT-6.1 Terra high |
+| Complex features, architecture | GPT-6.1 Sol high |
+| Debugging, refactoring | GPT-6.1 Sol high |
+| Security review | GPT-6 Astra high or max |
+
+Before launching a child, check that the host supports the requested model and
+effort; these recommendations do not guarantee availability. Preserve explicit
+owner model choices and the inherited primary model. If a model is unavailable
+before a child is created, retry at most once with an available model suited to
+the role; do not retry an uncertain spawn blindly or bypass a permission denial.
+Report requested model and effort separately from runtime observations: config
+and self-reports alone do not prove which model or effort ran.
 
 ## Skills Discovery
 

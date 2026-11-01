@@ -12,7 +12,7 @@
 //
 // Usage:
 //   node scripts/dev/generate-skill-triggers.js --auth-home ~/.ecc-eval/auth \
-//     [--model gpt-5.6-sol] [--executable /path/to/codex] [--batch 25] [--dry-run]
+//     [--model gpt-6.1-terra] [--executable /path/to/codex] [--batch 25] [--dry-run]
 //   node scripts/dev/generate-skill-triggers.js --provider claude \
 //     [--model claude-sonnet-5] [--executable /path/to/claude] [--batch 40] [--dry-run]
 //
@@ -32,7 +32,7 @@ const { digestObject, stableStringify } = require('../lib/context-profile-suppor
 const MANIFEST_PATH = 'manifests/context-packs/skill-triggers@1.json';
 const MAX_TRIGGERS_PER_SKILL = 12;
 const MAX_TRIGGER_CHARS = 80;
-const DEFAULT_MODEL = { codex: 'gpt-5.6-sol', claude: 'claude-sonnet-5' };
+const DEFAULT_MODEL = { codex: 'gpt-6.1-terra', claude: 'claude-sonnet-5' };
 
 function parseFlags(argv) {
   const flags = { batch: 25 };

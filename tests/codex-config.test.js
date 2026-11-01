@@ -265,22 +265,22 @@ for (const [name, fn] of checks) {
   if (test(name, fn)) passed++; else failed++;
 }
 if (
-  test('sample Codex roles route research to GPT-6 Luna and review to GPT-6 Sol', () => {
+  test('sample Codex roles route research to GPT-6.1 Sol and review to GPT-6 Astra', () => {
     const expected = {
-      'explorer.toml': ['gpt-6-luna', 'medium'],
-      'docs-researcher.toml': ['gpt-6-luna', 'medium'],
-      'reviewer.toml': ['gpt-6-sol', 'high'],
+      'explorer.toml': ['gpt-6.1-sol', 'medium'],
+      'docs-researcher.toml': ['gpt-6.1-sol', 'medium'],
+      'reviewer.toml': ['gpt-6-astra', 'high'],
     };
     for (const [roleFile, [model, effort]] of Object.entries(expected)) {
-      const roleConfig = fs.readFileSync(path.join(codexAgentsDir, roleFile), 'utf8');
-      assert.ok(roleConfig.includes(`model = "${model}"`), `${roleFile}: expected ${model}`);
-      assert.ok(
-        roleConfig.includes(`model_reasoning_effort = "${effort}"`),
-        `${roleFile}: expected ${effort} effort`,
-      );
+      const roleConfig = TOML.parse(fs.readFileSync(path.join(codexAgentsDir, roleFile), 'utf8'));
+      assert.strictEqual(roleConfig.model, model, `${roleFile}: expected ${model}`);
+      assert.strictEqual(roleConfig.model_reasoning_effort, effort, `${roleFile}: expected ${effort} effort`);
+      assert.strictEqual(roleConfig.sandbox_mode, 'read-only', `${roleFile}: expected read-only sandbox`);
     }
     const guidance = fs.readFileSync(path.join(repoRoot, '.codex', 'AGENTS.md'), 'utf8');
-    assert.ok(!/GPT 5\.5/.test(guidance), 'Expected model recommendations to be updated');
+    assert.match(guidance, /Routine coding, tests, formatting \| GPT-6\.1 Terra high/);
+    assert.match(guidance, /Complex features, architecture \| GPT-6\.1 Sol high/);
+    assert.match(guidance, /Security review \| GPT-6 Astra high or max/);
   })
 )
   passed++;
