@@ -4,6 +4,10 @@ This is a **production-ready AI coding plugin** providing 71 specialized agents,
 
 **Version:** 2.2.3
 
+## Owner policy for this fork
+
+For work in `alexpostnik/ECC`, read the shared [System policy](https://github.com/alexpostnik/system/blob/main/governance/policy.md) (or the connected `system/governance/policy.md`). It owns task boundaries, questions and scope decisions through issues, and proportionate backup checks. Apply ECC workflows within that policy and the owner's current request; do not create a second local process or copy these rules into every skill.
+
 ## Core Principles
 
 1. **Agent-First** — Delegate to specialized agents for domain tasks

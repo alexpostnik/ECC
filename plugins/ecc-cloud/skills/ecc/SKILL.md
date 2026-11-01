@@ -92,6 +92,26 @@ different one. Delegate only useful, bounded work.
 - Keep scope focused. Do not provision another development environment,
   install another agent, or publish to upstream just because an example does.
 
+### Apply checklists within the task boundary
+
+Distinguish preparing a plan from executing an authorized task or plan. Bind
+each workflow step to the current result, affected component, and applicable
+project rule. A broader checklist does not enlarge the assignment. Reuse
+existing verification evidence when its inputs and conclusion still apply;
+repeat checks only for a relevant change, failure, or identified evidence gap.
+
+Creating a backup and rehearsing its restoration are separate activities.
+Deployment or migration examples do not require restoring every new backup or
+retesting a retired service. Follow the project's explicit, bounded exceptions
+for restoration tests; do not invent additional ones from general safety advice.
+
+Use the project's established decision channel for unresolved questions and
+scope changes. Where it requires an issue, create or update the relevant issue
+with the current boundary, evidence, proposed change, and decision needed;
+give the owner its link and pause dependent work until that decision arrives.
+An agent's checklist or the mere creation of an issue is not authorization.
+Continue independent work already in scope without repeating valid approvals.
+
 ## Resolve host differences explicitly
 
 Canonical ECC instructions can mention Claude tools, slash commands, plugin
