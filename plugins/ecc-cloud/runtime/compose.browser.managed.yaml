@@ -1,0 +1,42 @@
+services:
+  browser:
+    image: ecc-native:codex-0.159.2-ecc-2.2.3
+    container_name: ${ECC_NATIVE_BROWSER_NAME:-ecc-browser}
+    user: node
+    working_dir: /tmp
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    shm_size: 256m
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,exec,size=1g,uid=1000,gid=1000,mode=1777
+      - /home/node/.local/share/pki:rw,nosuid,nodev,noexec,size=8m,uid=1000,gid=1000,mode=0700
+    environment:
+      NODE_EXTRA_CA_CERTS: /run/proxy-ca.pem
+      SSL_CERT_FILE: /run/system-ca.pem
+      XDG_CACHE_HOME: /tmp/cache
+      XDG_CONFIG_HOME: /tmp/config
+    volumes:
+      - type: bind
+        source: ./browser
+        target: /opt/ecc-browser
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CODEX_PROXY_CERT:?Managed proxy certificate path is required}
+        target: /run/proxy-ca.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/ssl/certs/ca-certificates.crt
+        target: /run/system-ca.pem
+        read_only: true
+        bind:
+          create_host_path: false
+    command: [sh, /opt/ecc-browser/start.sh]

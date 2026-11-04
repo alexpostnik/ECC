@@ -20,6 +20,9 @@ of original ECC files as supporting references.
 2. Read [release.json](references/release.json) for the short release summary
    and [runtime.md](references/runtime.md) for the cloud capability boundaries.
    Read the full `source.json` hash manifest only for an integrity audit.
+   If the task needs native hooks, local MCP, or persistent ECC memory, follow
+   the native-runtime discovery section there. Reuse an existing installation;
+   do not repeat setup or login just because this conversation is new.
 3. Before implementing, refactoring, or reviewing code, select and read the
    applicable rules as described below.
 4. Select the smallest useful set of ECC workflows. Read the complete selected
