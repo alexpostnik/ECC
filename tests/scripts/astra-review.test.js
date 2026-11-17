@@ -12,6 +12,8 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const cli = require('../../scripts/astra-review');
+const { resolveCodexCommand } = require('../../scripts/lib/astra-review/codex');
+const { RUBRIC } = require('../../scripts/lib/astra-review/prompt');
 
 const SCRIPT = path.join(__dirname, '..', '..', 'scripts', 'astra-review.js');
 
@@ -55,11 +57,11 @@ function baseDeps(overrides = {}) {
 
 console.log('=== Testing scripts/astra-review.js ===\n');
 
-test('parseArgs defaults to uncommitted scope and gpt-6-astra', () => {
+test('parseArgs defaults to uncommitted scope and gpt-6.2-astra', () => {
   const options = cli.parseArgs([], {});
 
   assert.strictEqual(options.scope.kind, 'uncommitted');
-  assert.strictEqual(options.model, 'gpt-6-astra');
+  assert.strictEqual(options.model, 'gpt-6.2-astra');
   assert.strictEqual(options.consent, false);
 });
 
@@ -87,6 +89,16 @@ test('parseArgs rejects unknown flags and bad timeouts', () => {
   assert.throws(() => cli.parseArgs(['--bogus'], {}), /unknown argument/);
   assert.throws(() => cli.parseArgs(['--timeout-seconds', '5'], {}), /timeout-seconds/);
   assert.throws(() => cli.parseArgs(['--model', 'bad slug!'], {}), /invalid model/);
+});
+
+test('parseArgs validates --reasoning-effort and limits it to review mode', () => {
+  assert.strictEqual(cli.parseArgs(['--reasoning-effort', 'xhigh'], {}).reasoningEffort, 'xhigh');
+  assert.throws(() => cli.parseArgs(['--reasoning-effort'], {}), /requires a value/);
+  assert.throws(() => cli.parseArgs(['--reasoning-effort', 'unknown'], {}), /--reasoning-effort must be/);
+  assert.throws(
+    () => cli.parseArgs(['--fix-findings', 'findings.json', '--reasoning-effort', 'high'], {}),
+    /--reasoning-effort.*--fix-findings/
+  );
 });
 
 test('runCli prints "Nothing to review" and passes when there are no changes', () => {
@@ -126,7 +138,7 @@ test('runCli returns 0 and a markdown report on PASS', () => {
   const code = cli.runCli(cli.parseArgs(['--consent-to-openai'], {}), deps);
 
   assert.strictEqual(code, cli.EXIT_PASS);
-  assert.ok(deps.stdout.text().includes('# Astra Review (gpt-6-astra)'));
+  assert.ok(deps.stdout.text().includes('# Astra Review (gpt-6.2-astra)'));
   assert.ok(deps.stdout.text().includes('**PASS**'));
 });
 
@@ -145,20 +157,23 @@ test('runCli returns 1 on FAIL and writes JSON to --output', () => {
   assert.strictEqual(JSON.parse(deps.stdout.text()).review.findings.length, 1);
 });
 
-test('runCli passes model, prompt, and timeout through to the reviewer', () => {
+test('runCli passes model, reasoning effort, prompt, and timeout through to the reviewer', () => {
   let seen = null;
   const deps = baseDeps({ runCodexReview: (input) => { seen = input; return passingReview; } });
 
-  cli.runCli(cli.parseArgs(['--consent-to-openai', '--model', 'gpt-5.5', '--timeout-seconds', '60'], {}), deps);
+  cli.runCli(cli.parseArgs([
+    '--consent-to-openai', '--model', 'gpt-5.5', '--reasoning-effort', 'medium', '--timeout-seconds', '60',
+  ], {}), deps);
 
   assert.strictEqual(seen.model, 'gpt-5.5');
+  assert.strictEqual(seen.reasoningEffort, 'medium');
   assert.strictEqual(seen.timeoutMs, 60_000);
   assert.strictEqual(seen.cwd, '/repo-root');
   assert.ok(seen.prompt.includes('+x'));
   assert.ok(seen.prompt.includes('git show sha:<path>'));
 });
 
-const savedVerdict = JSON.stringify({ model: 'gpt-6-astra', verdict: 'FAIL', review: failingReview });
+const savedVerdict = JSON.stringify({ model: 'gpt-6.2-astra', verdict: 'FAIL', review: failingReview });
 const fixResult = { summary: 'fixed', fixed: [{ title: 'Bug', file: 'a.js', change: 'guard' }], skipped: [] };
 
 function fixDeps(overrides = {}) {
@@ -211,9 +226,9 @@ test('runCli fix mode sends the findings to Astra at the repo root and prints th
   assert.strictEqual(code, cli.EXIT_PASS);
   assert.strictEqual(readPath, '/tmp/v.json');
   assert.strictEqual(seen.cwd, '/repo-root');
-  assert.strictEqual(seen.model, 'gpt-6-astra');
+  assert.strictEqual(seen.model, 'gpt-6.2-astra');
   assert.ok(seen.prompt.includes('keep API'));
-  assert.ok(deps.stdout.text().includes('# Astra Fix (gpt-6-astra)'));
+  assert.ok(deps.stdout.text().includes('# Astra Fix (gpt-6.2-astra)'));
 });
 
 test('runCli fix mode --json prints the fix payload', () => {
@@ -328,6 +343,126 @@ test('CLI --help exits 0 and prints usage', () => {
 
   assert.strictEqual(result.status, 0);
   assert.ok(result.stdout.includes('--consent-to-openai'));
+  assert.ok(result.stdout.includes('--reasoning-effort'));
+});
+
+function findGit(searchPath) {
+  const gitName = process.platform === 'win32' ? 'git.exe' : 'git';
+  for (const directory of searchPath.split(path.delimiter)) {
+    if (!path.isAbsolute(directory)) continue;
+    const file = path.join(directory, gitName);
+    try {
+      fs.accessSync(file, fs.constants.X_OK);
+      if (fs.statSync(file).isFile()) return file;
+    } catch { /* check the next PATH entry */ }
+  }
+  throw new Error('Git executable not found in an absolute PATH entry');
+}
+
+test('CLI sends the default and explicit review effort to an isolated Codex fixture', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'astra-cli-'));
+  try {
+    const windows = process.platform === 'win32';
+    const bin = path.join(dir, 'bin');
+    const foreignBin = path.join(dir, 'foreign-bin');
+    const foreignCodex = path.join(foreignBin, 'codex.exe');
+    fs.mkdirSync(foreignBin);
+    fs.writeFileSync(foreignCodex, 'A foreign executable must never reach spawn');
+
+    // With the foreign directory later on PATH, Windows would prefer its
+    // native executable to the fixture's earlier npm shim. Probe only resolution.
+    const windowsBin = path.win32.normalize(bin);
+    const windowsEntry = path.win32.join(windowsBin, 'node_modules', '@openai', 'codex', 'bin', 'codex.js');
+    const windowsFiles = new Set([path.win32.join(windowsBin, 'codex.cmd'), windowsEntry, path.win32.normalize(foreignCodex)]);
+    const resolveWindowsCodex = (searchPath) => resolveCodexCommand({
+      platform: 'win32', env: { PATH: searchPath }, existsSync: (file) => windowsFiles.has(file),
+    });
+    const foreign = resolveWindowsCodex([windowsBin, path.win32.normalize(foreignBin)].join(';'));
+    assert.strictEqual(foreign.command, path.win32.normalize(foreignCodex));
+    assert.deepStrictEqual(resolveWindowsCodex(windowsBin), { command: process.execPath, prefixArgs: [windowsEntry] });
+
+    const git = findGit(process.env.PATH || process.env.Path || process.env.path || '');
+    const env = {
+      PATH: bin,
+      CODEX_HOME: path.join(dir, 'codex-home'),
+      SystemRoot: process.env.SystemRoot,
+      TMPDIR: process.env.TMPDIR,
+      TEMP: process.env.TEMP,
+      TMP: process.env.TMP,
+      GIT_CONFIG_NOSYSTEM: '1',
+      GIT_CONFIG_GLOBAL: path.join(dir, 'gitconfig'),
+    };
+    // Some systems install Git as a shell wrapper. Only Git gets a path for
+    // its own directory and the basic system tools, never the Codex fixture.
+    const gitPath = windows ? path.dirname(git) : [path.dirname(git), '/usr/bin', '/bin'].join(path.delimiter);
+    const gitEnv = { ...env, PATH: gitPath };
+    const init = spawnSync(git, ['init', '--quiet'], { cwd: dir, env: gitEnv, encoding: 'utf8' });
+    assert.strictEqual(init.status, 0, init.stderr);
+    fs.writeFileSync(path.join(dir, 'sample.js'), 'module.exports = 42;\n');
+
+    const entry = windows
+      ? path.join(bin, 'node_modules', '@openai', 'codex', 'bin', 'codex.js')
+      : path.join(bin, 'codex');
+    fs.mkdirSync(path.dirname(entry), { recursive: true });
+    if (windows) fs.writeFileSync(path.join(bin, 'codex.cmd'), '');
+    const stubReview = {
+      ...passingReview,
+      checks: RUBRIC.map(([criterion]) => ({ criterion, result: 'PASS', detail: 'ok' })),
+    };
+    fs.writeFileSync(entry, `const fs = require('fs');
+const args = process.argv.slice(2);
+if (args[0] === 'mcp') {
+  process.stdout.write('[]');
+} else {
+  const verdict = { ...${JSON.stringify(stubReview)}, summary: JSON.stringify({ args, path: process.env.PATH }) };
+  fs.writeFileSync(args[args.indexOf('--output-last-message') + 1], JSON.stringify(verdict));
+}
+`);
+
+    // Preserve actual CLI parsing and Git calls. Bind Git and the stub to
+    // absolute executables and refuse all other subprocesses before spawning.
+    const preload = path.join(dir, 'preload.cjs');
+    fs.writeFileSync(preload, `
+const cp = require('node:child_process');
+const spawn = cp.spawnSync;
+cp.spawnSync = (command, args, options) => {
+  if (command === 'git') return spawn(${JSON.stringify(git)}, args, { ...options, env: ${JSON.stringify(gitEnv)} });
+  const entry = ${JSON.stringify(entry)};
+  if (options.env?.PATH === ${JSON.stringify(bin)}) {
+    if (process.platform === 'win32' && command === process.execPath && args[0] === entry) {
+      return spawn(process.execPath, args, options);
+    }
+    if (process.platform !== 'win32' && command === 'codex') {
+      return spawn(process.execPath, [entry, ...args], options);
+    }
+  }
+  throw new Error('Unexpected subprocess in Astra CLI fixture');
+};
+`);
+    const cases = [
+      { flags: [], model: 'gpt-6.2-astra', effort: 'high' },
+      { flags: ['--reasoning-effort', 'low'], model: 'gpt-6.2-astra', effort: 'low' },
+      { flags: ['--model', 'gpt-6.2-sol'], model: 'gpt-6.2-sol' },
+      { flags: [], model: 'gpt-6.2-sol', envModel: 'gpt-6.2-sol' },
+    ];
+    for (const { flags, model, effort, envModel = '' } of cases) {
+      const result = spawnSync(process.execPath, [
+        '--require', preload, SCRIPT, '--files', 'sample.js', '--consent-to-openai', '--json', ...flags,
+      ], { cwd: dir, encoding: 'utf8', env: { ...env, ECC_ASTRA_MODEL: envModel }, timeout: 10_000 });
+      assert.strictEqual(result.status, 0, result.stderr || result.error?.message);
+      const { review } = JSON.parse(result.stdout);
+      const { args, path: observedPath } = JSON.parse(review.summary);
+      assert.strictEqual(observedPath, bin);
+      assert.strictEqual(args[args.indexOf('-m') + 1], model);
+      assert.strictEqual(args[args.indexOf('--sandbox') + 1], 'read-only');
+      assert.ok(args.includes('--ignore-user-config'));
+      const effortArgs = args.filter((arg) => arg.startsWith('model_reasoning_effort='));
+      assert.deepStrictEqual(effortArgs, effort ? [`model_reasoning_effort="${effort}"`] : []);
+      if (effort) assert.strictEqual(args[args.indexOf(effortArgs[0]) - 1], '--config');
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -265,11 +265,11 @@ for (const [name, fn] of checks) {
   if (test(name, fn)) passed++; else failed++;
 }
 if (
-  test('sample Codex roles route research to GPT-6.1 Sol and review to GPT-6 Astra', () => {
+  test('sample Codex roles route research to GPT-6.2 Sol and review to GPT-6.2 Astra', () => {
     const expected = {
-      'explorer.toml': ['gpt-6.1-sol', 'medium'],
-      'docs-researcher.toml': ['gpt-6.1-sol', 'medium'],
-      'reviewer.toml': ['gpt-6-astra', 'high'],
+      'explorer.toml': ['gpt-6.2-sol', 'medium'],
+      'docs-researcher.toml': ['gpt-6.2-sol', 'medium'],
+      'reviewer.toml': ['gpt-6.2-astra', 'high'],
     };
     for (const [roleFile, [model, effort]] of Object.entries(expected)) {
       const roleConfig = TOML.parse(fs.readFileSync(path.join(codexAgentsDir, roleFile), 'utf8'));
@@ -278,9 +278,9 @@ if (
       assert.strictEqual(roleConfig.sandbox_mode, 'read-only', `${roleFile}: expected read-only sandbox`);
     }
     const guidance = fs.readFileSync(path.join(repoRoot, '.codex', 'AGENTS.md'), 'utf8');
-    assert.match(guidance, /Routine coding, tests, formatting \| GPT-6\.1 Terra high/);
-    assert.match(guidance, /Complex features, architecture \| GPT-6\.1 Sol high/);
-    assert.match(guidance, /Security review \| GPT-6 Astra high or max/);
+    assert.match(guidance, /Routine coding, tests, formatting \| GPT-6\.2 Sol medium/);
+    assert.match(guidance, /Complex features, architecture \| GPT-6\.2 Astra high/);
+    assert.match(guidance, /Security review \| GPT-6\.2 Astra high or max/);
   })
 )
   passed++;

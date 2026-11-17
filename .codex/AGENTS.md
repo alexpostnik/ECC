@@ -9,10 +9,12 @@ For repo navigation, surface ownership, and PR diff packet guidance, read
 
 | Task Type | Recommended Model |
 |-----------|------------------|
-| Routine coding, tests, formatting | GPT-6.1 Terra high |
-| Complex features, architecture | GPT-6.1 Sol high |
-| Debugging, refactoring | GPT-6.1 Sol high |
-| Security review | GPT-6 Astra high or max |
+| Routine coding, tests, formatting | GPT-6.2 Sol medium |
+| Complex features, architecture | GPT-6.2 Astra high |
+| Debugging, refactoring | GPT-6.2 Sol high |
+| Security review | GPT-6.2 Astra high or max |
+
+Use the [Codex subagent guidance](https://learn.chatgpt.com/docs/agent-configuration/subagents) as the baseline. For a GPT-6.2 parent, start with the same model and effort unless scope and risk justify another pair. Compare time, quality and usage per accepted task, including retries. These profiles are starting points for this fork.
 
 Before launching a child, check that the host supports the requested model and
 effort; these recommendations do not guarantee availability. Preserve explicit
@@ -85,12 +87,9 @@ When approval is ambiguous, produce a local plan or draft artifact instead of ta
 
 ## Multi-Agent Support
 
-Codex now supports multi-agent workflows behind the experimental `features.multi_agent` flag.
+Current Codex versions expose multi-agent tools through `[agents] enabled` (on by default). This fork also carries the older feature setting for clients that use it. Use `/subagents` in the current CLI to inspect child threads.
 
-- Enable it in `.codex/config.toml` with `[features] multi_agent = true`
-- Define project-local roles under `[agents.<name>]`
-- Point each role at a TOML layer under `.codex/agents/`
-- Use `/agent` inside Codex CLI to inspect and steer child agents
+This fork registers each project role in `[agents.<name>]` with a `config_file` relative to the declaring configuration. For a new standalone role, put one TOML file in `.codex/agents/` for the project or `~/.codex/agents/` for the user. Specify `name`, `description`, and `developer_instructions`. Fixed model or effort fields override the corresponding resolved launch values. Define the pair only when the role requires it. Claude Code reads `CLAUDE.md` and stores project subagents in `.claude/agents/*.md` with YAML frontmatter and a Markdown instruction body. [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents) · [Claude Code subagents](https://code.claude.com/docs/en/sub-agents).
 
 Sample role configs in this repo:
 - `.codex/agents/explorer.toml` — read-only evidence gathering
@@ -102,10 +101,10 @@ Sample role configs in this repo:
 | Feature | Claude Code | Codex CLI |
 |---------|------------|-----------|
 | Hooks | 8+ event types | Reviewed native subset with explicit trust in `/hooks` |
-| Context file | CLAUDE.md + AGENTS.md | AGENTS.md only |
+| Context file | CLAUDE.md (can import shared guidance) | AGENTS.md or AGENTS.override.md by directory |
 | Skills | Skills loaded via plugin | Native plugin skills and repo `.agents/skills/` |
 | Commands | `/slash` commands | Instruction-based |
-| Agents | Subagent Task tool | Multi-agent via `/agent` and `[agents.<name>]` roles |
+| Agents | Subagent Task tool | `/subagents`; standalone TOML or registered roles |
 | Security | Hook profiles + sandbox | Trusted hook subset + instruction + sandbox |
 | MCP | Full support | Supported via `config.toml` and `codex mcp add` |
 
