@@ -12,6 +12,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const cli = require('../../scripts/astra-review');
+const { resolveCodexCommand } = require('../../scripts/lib/astra-review/codex');
 const { RUBRIC } = require('../../scripts/lib/astra-review/prompt');
 
 const SCRIPT = path.join(__dirname, '..', '..', 'scripts', 'astra-review.js');
@@ -345,39 +346,99 @@ test('CLI --help exits 0 and prints usage', () => {
   assert.ok(result.stdout.includes('--reasoning-effort'));
 });
 
-test('CLI sends the default and explicit review effort to codex exec', () => {
+function findGit(searchPath) {
+  const gitName = process.platform === 'win32' ? 'git.exe' : 'git';
+  for (const directory of searchPath.split(path.delimiter)) {
+    if (!path.isAbsolute(directory)) continue;
+    const file = path.join(directory, gitName);
+    try {
+      fs.accessSync(file, fs.constants.X_OK);
+      if (fs.statSync(file).isFile()) return file;
+    } catch { /* check the next PATH entry */ }
+  }
+  throw new Error('Git executable not found in an absolute PATH entry');
+}
+
+test('CLI sends the default and explicit review effort to an isolated Codex fixture', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'astra-cli-'));
   try {
-    const init = spawnSync('git', ['init', '--quiet'], { cwd: dir, encoding: 'utf8' });
+    const windows = process.platform === 'win32';
+    const bin = path.join(dir, 'bin');
+    const foreignBin = path.join(dir, 'foreign-bin');
+    const foreignCodex = path.join(foreignBin, 'codex.exe');
+    fs.mkdirSync(foreignBin);
+    fs.writeFileSync(foreignCodex, 'A foreign executable must never reach spawn');
+
+    // With the foreign directory later on PATH, Windows would prefer its
+    // native executable to the fixture's earlier npm shim. Probe only resolution.
+    const windowsBin = path.win32.normalize(bin);
+    const windowsEntry = path.win32.join(windowsBin, 'node_modules', '@openai', 'codex', 'bin', 'codex.js');
+    const windowsFiles = new Set([path.win32.join(windowsBin, 'codex.cmd'), windowsEntry, path.win32.normalize(foreignCodex)]);
+    const resolveWindowsCodex = (searchPath) => resolveCodexCommand({
+      platform: 'win32', env: { PATH: searchPath }, existsSync: (file) => windowsFiles.has(file),
+    });
+    const foreign = resolveWindowsCodex([windowsBin, path.win32.normalize(foreignBin)].join(';'));
+    assert.strictEqual(foreign.command, path.win32.normalize(foreignCodex));
+    assert.deepStrictEqual(resolveWindowsCodex(windowsBin), { command: process.execPath, prefixArgs: [windowsEntry] });
+
+    const git = findGit(process.env.PATH || process.env.Path || process.env.path || '');
+    const env = {
+      PATH: bin,
+      CODEX_HOME: path.join(dir, 'codex-home'),
+      SystemRoot: process.env.SystemRoot,
+      TMPDIR: process.env.TMPDIR,
+      TEMP: process.env.TEMP,
+      TMP: process.env.TMP,
+      GIT_CONFIG_NOSYSTEM: '1',
+      GIT_CONFIG_GLOBAL: path.join(dir, 'gitconfig'),
+    };
+    // Some systems install Git as a shell wrapper. Only Git gets a path for
+    // its own directory and the basic system tools, never the Codex fixture.
+    const gitPath = windows ? path.dirname(git) : [path.dirname(git), '/usr/bin', '/bin'].join(path.delimiter);
+    const gitEnv = { ...env, PATH: gitPath };
+    const init = spawnSync(git, ['init', '--quiet'], { cwd: dir, env: gitEnv, encoding: 'utf8' });
     assert.strictEqual(init.status, 0, init.stderr);
     fs.writeFileSync(path.join(dir, 'sample.js'), 'module.exports = 42;\n');
 
-    const bin = path.join(dir, 'bin');
-    const launcher = path.join(bin, process.platform === 'win32' ? 'codex.cmd' : 'codex');
-    let entry = launcher;
-    fs.mkdirSync(bin);
-    if (process.platform === 'win32') {
-      entry = path.join(bin, 'node_modules', '@openai', 'codex', 'bin', 'codex.js');
-      fs.mkdirSync(path.dirname(entry), { recursive: true });
-      fs.writeFileSync(launcher, '');
-    }
+    const entry = windows
+      ? path.join(bin, 'node_modules', '@openai', 'codex', 'bin', 'codex.js')
+      : path.join(bin, 'codex');
+    fs.mkdirSync(path.dirname(entry), { recursive: true });
+    if (windows) fs.writeFileSync(path.join(bin, 'codex.cmd'), '');
     const stubReview = {
       ...passingReview,
       checks: RUBRIC.map(([criterion]) => ({ criterion, result: 'PASS', detail: 'ok' })),
     };
-    fs.writeFileSync(entry, `#!/usr/bin/env node
-const fs = require('fs');
+    fs.writeFileSync(entry, `const fs = require('fs');
 const args = process.argv.slice(2);
 if (args[0] === 'mcp') {
   process.stdout.write('[]');
 } else {
-  const verdict = { ...${JSON.stringify(stubReview)}, summary: JSON.stringify(args) };
+  const verdict = { ...${JSON.stringify(stubReview)}, summary: JSON.stringify({ args, path: process.env.PATH }) };
   fs.writeFileSync(args[args.indexOf('--output-last-message') + 1], JSON.stringify(verdict));
 }
-`, { mode: 0o755 });
+`);
 
-    const pathKey = Object.keys(process.env).find((key) => key.toUpperCase() === 'PATH') || 'PATH';
-    const env = { ...process.env, [pathKey]: `${bin}${path.delimiter}${process.env[pathKey] || ''}` };
+    // Preserve actual CLI parsing and Git calls. Bind Git and the stub to
+    // absolute executables and refuse all other subprocesses before spawning.
+    const preload = path.join(dir, 'preload.cjs');
+    fs.writeFileSync(preload, `
+const cp = require('node:child_process');
+const spawn = cp.spawnSync;
+cp.spawnSync = (command, args, options) => {
+  if (command === 'git') return spawn(${JSON.stringify(git)}, args, { ...options, env: ${JSON.stringify(gitEnv)} });
+  const entry = ${JSON.stringify(entry)};
+  if (options.env?.PATH === ${JSON.stringify(bin)}) {
+    if (process.platform === 'win32' && command === process.execPath && args[0] === entry) {
+      return spawn(process.execPath, args, options);
+    }
+    if (process.platform !== 'win32' && command === 'codex') {
+      return spawn(process.execPath, [entry, ...args], options);
+    }
+  }
+  throw new Error('Unexpected subprocess in Astra CLI fixture');
+};
+`);
     const cases = [
       { flags: [], model: 'gpt-6.2-astra', effort: 'high' },
       { flags: ['--reasoning-effort', 'low'], model: 'gpt-6.2-astra', effort: 'low' },
@@ -386,11 +447,12 @@ if (args[0] === 'mcp') {
     ];
     for (const { flags, model, effort, envModel = '' } of cases) {
       const result = spawnSync(process.execPath, [
-        SCRIPT, '--files', 'sample.js', '--consent-to-openai', '--json', ...flags,
+        '--require', preload, SCRIPT, '--files', 'sample.js', '--consent-to-openai', '--json', ...flags,
       ], { cwd: dir, encoding: 'utf8', env: { ...env, ECC_ASTRA_MODEL: envModel }, timeout: 10_000 });
       assert.strictEqual(result.status, 0, result.stderr || result.error?.message);
       const { review } = JSON.parse(result.stdout);
-      const args = JSON.parse(review.summary);
+      const { args, path: observedPath } = JSON.parse(review.summary);
+      assert.strictEqual(observedPath, bin);
       assert.strictEqual(args[args.indexOf('-m') + 1], model);
       assert.strictEqual(args[args.indexOf('--sandbox') + 1], 'read-only');
       assert.ok(args.includes('--ignore-user-config'));
