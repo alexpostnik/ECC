@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Send code written in Claude Code to GPT-6-Astra (via Codex CLI) for an
+ * Send code written in Claude Code to GPT-6.2 Astra (via Codex CLI) for an
  * independent review and print a structured verdict.
  *
  * Usage:
@@ -19,6 +19,8 @@
  *
  * Options:
  *   --model <slug>           default: gpt-6.2-astra (or ECC_ASTRA_MODEL)
+ *   --reasoning-effort <level>  review only: low, medium, high, xhigh, or max
+ *                               defaults to high with gpt-6.2-astra
  *   --timeout-seconds <n>    30-900, default 300
  *   --instructions <text>    extra reviewer instructions
  *   --output <file>          also write the JSON verdict to <file>
@@ -43,6 +45,7 @@ const EXIT_PASS = 0;
 const REPORT_FILE_MODE = 0o600;
 const EXIT_FAIL = 1;
 const EXIT_ERROR = 2;
+const REVIEW_REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 /**
  * Write the JSON report atomically: the content goes into a fresh, exclusively
@@ -73,8 +76,8 @@ function writeReport(file, content, io = fs) {
 }
 
 function usage() {
-  return fs.readFileSync(__filename, 'utf8').split('\n')
-    .slice(2, 29)
+  return fs.readFileSync(__filename, 'utf8').split('\n */', 1)[0].split('\n')
+    .slice(2)
     .map((line) => line.replace(/^ \* ?/, ''))
     .join('\n');
 }
@@ -94,6 +97,7 @@ function parseArgs(argv, env = process.env) {
   let options = {
     base: null, commit: null, files: [], filesFromCommit: null, fixFindings: null,
     model: env.ECC_ASTRA_MODEL || codex.DEFAULT_MODEL,
+    reasoningEffort: undefined,
     timeoutMs: codex.DEFAULT_TIMEOUT_MS,
     instructions: '',
     output: null,
@@ -119,6 +123,14 @@ function parseArgs(argv, env = process.env) {
     }
     else if (arg === '--fix-findings') { options = { ...options, fixFindings: takeValue(argv, index, arg) }; index += 1; }
     else if (arg === '--model') { options = { ...options, model: takeValue(argv, index, arg) }; index += 1; }
+    else if (arg === '--reasoning-effort') {
+      const effort = takeValue(argv, index, arg);
+      if (!REVIEW_REASONING_EFFORTS.includes(effort)) {
+        throw new Error(`--reasoning-effort must be one of: ${REVIEW_REASONING_EFFORTS.join(', ')}`);
+      }
+      options = { ...options, reasoningEffort: effort };
+      index += 1;
+    }
     else if (arg === '--timeout-seconds') {
       const seconds = Number(takeValue(argv, index, arg));
       const min = codex.MIN_TIMEOUT_MS / 1000;
@@ -142,6 +154,9 @@ function parseArgs(argv, env = process.env) {
   const scope = parseScope(options);
   if (options.fixFindings && scope.kind !== 'uncommitted') {
     throw new Error('--fix-findings cannot be combined with --base, --commit, --files, or --files-from-commit');
+  }
+  if (options.fixFindings && options.reasoningEffort !== undefined) {
+    throw new Error('--reasoning-effort is only available for review and cannot be combined with --fix-findings');
   }
   return { ...options, scope };
 }
@@ -224,7 +239,13 @@ function runCli(options, deps = {}) {
 
   stderr.write(`[astra-review] sending ${changes.files.length} file(s) (${scopeLabel}) to ${options.model}...\n`);
   const repoRoot = changes.root || cwd;
-  const result = review({ prompt, cwd: repoRoot, model: options.model, timeoutMs: options.timeoutMs });
+  const result = review({
+    prompt,
+    cwd: repoRoot,
+    model: options.model,
+    reasoningEffort: options.reasoningEffort,
+    timeoutMs: options.timeoutMs,
+  });
   const verdict = effectiveVerdict(result);
   const payload = { model: options.model, scope: scopeLabel, files: changes.files, verdict, review: result };
 

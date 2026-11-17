@@ -1,12 +1,12 @@
 ---
 description: Send Claude-written code to GPT-6-Astra (ChatGPT, via Codex CLI) for an independent cross-provider review, then fix what it finds.
-argument-hint: "[--base <branch> | --commit <sha> | --files <paths> | --files-from-commit <sha>] [extra reviewer instructions]"
+argument-hint: "[--base <branch> | --commit <sha> | --files <paths> | --files-from-commit <sha>] [--reasoning-effort <level>] [extra reviewer instructions]"
 model: opus
 ---
 
 # Astra Review
 
-Cross-provider second opinion. Claude writes the code; GPT-6-Astra (OpenAI, running through the locally installed Codex CLI with your ChatGPT login) reviews it with no shared context. Claude then fixes what Astra finds and re-runs until Astra passes or the round limit is hit.
+Cross-provider second opinion. Claude writes the code and GPT-6.2 Astra reviews it with no shared context through the local Codex CLI using your ChatGPT login. Claude then fixes confirmed findings and runs the review again until it passes or reaches the round limit.
 
 This command runs on **Opus** (`model: opus`). Opus orchestrates, verifies findings, checks every diff, and runs the tests. Fixes are delegated to a **Fable** subagent; when Fable has hit its usage limit, Astra applies the fixes instead (see Step 4).
 
@@ -30,6 +30,7 @@ This command runs on **Opus** (`model: opus`). Opus orchestrates, verifies findi
 /astra-review --commit HEAD~1          # one commit
 /astra-review --files src/a.ts src/b.ts
 /astra-review --files-from-commit HEAD~1  # repair round after a --commit review
+/astra-review --base main --reasoning-effort xhigh
 /astra-review Focus on the SQL layer   # free text becomes extra reviewer instructions
 ```
 
@@ -37,7 +38,7 @@ This command runs on **Opus** (`model: opus`). Opus orchestrates, verifies findi
 
 ### Step 1: Resolve scope
 
-Parse `$ARGUMENTS`. Flags (`--base`, `--commit`, `--files`, `--files-from-commit`) select the scope; any remaining text is passed as `--instructions`. With no flags, review uncommitted changes.
+Parse `$ARGUMENTS`. Scope flags (`--base`, `--commit`, `--files`, `--files-from-commit`) select what to review. Pass `--reasoning-effort <level>` as a CLI option and any remaining text as `--instructions`. With no scope flags, review uncommitted changes.
 
 Preview what will leave the machine before sending it:
 
@@ -58,12 +59,14 @@ If the output says "Nothing to review", stop and tell the user.
 ### Step 2: Run the review
 
 ```bash
-node "$ASTRA" --consent-to-openai [scope flags] \
+node "$ASTRA" --consent-to-openai [scope flags] [--reasoning-effort <level>] \
   --instructions "<extra text, if any>" \
   --output "$(mktemp -d)/astra-review.json"   # private dir, never a shared predictable path
 ```
 
 The script prints a markdown report and exits 0 (PASS), 1 (FAIL), or 2 (error). On exit 2, report the error verbatim and stop. Typical causes: Codex not installed, not logged in, model not available on the account, timeout.
+
+Review with `gpt-6.2-astra` defaults to `high` effort. Use `--reasoning-effort` with `low`, `medium`, `high`, `xhigh`, or `max` if the selected model and Codex client support it. The CLI lets Codex choose the effort for models selected through `--model` or `ECC_ASTRA_MODEL` when they differ from the default and no effort is specified. Keep the chosen review effort on subsequent review rounds. The option applies only to read-only review.
 
 ### Step 3: Verdict gate
 

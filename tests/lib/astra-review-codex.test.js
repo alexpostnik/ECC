@@ -151,6 +151,7 @@ test('runCodexReview lists MCP servers, then sends the prompt on stdin and retur
   const execCall = spawn.calls[1];
   assert.strictEqual(execCall.cmd, 'codex');
   assert.ok(execCall.args.includes('mcp_servers.github={command="true",enabled=false}'));
+  assert.ok(!execCall.args.some((arg) => arg.startsWith('model_reasoning_effort=')));
   assert.strictEqual(execCall.options.input, 'review this');
   assert.strictEqual(execCall.options.timeout, 60_000);
 });
@@ -332,13 +333,14 @@ test('runCodexFix runs in a workspace-write sandbox and returns the parsed fix r
   };
 
   const result = codex.runCodexFix(
-    { prompt: 'fix this', cwd: os.tmpdir(), model: 'gpt-6-astra', timeoutMs: 60_000 },
+    { prompt: 'fix this', cwd: os.tmpdir(), model: codex.DEFAULT_MODEL, timeoutMs: 60_000 },
     { spawnSync, env: { PATH: '/bin', OPENAI_API_KEY: 'sk-secret' } }
   );
 
   assert.strictEqual(result.fixed.length, 1);
   const execArgs = calls[1].args;
   assert.strictEqual(execArgs[execArgs.indexOf('--sandbox') + 1], 'workspace-write');
+  assert.ok(!execArgs.some((arg) => arg.startsWith('model_reasoning_effort=')));
   assert.strictEqual(calls[1].options.input, 'fix this');
   assert.strictEqual(calls[1].options.env.OPENAI_API_KEY, undefined);
 });

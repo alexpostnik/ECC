@@ -1,5 +1,5 @@
 /**
- * Astra review: invoke the Codex CLI (ChatGPT login) with GPT-6-Astra
+ * Astra review: invoke the Codex CLI (ChatGPT login) with GPT-6.2 Astra
  * in a read-only sandbox and return the parsed structured verdict. The fix
  * fallback reuses the same isolation with a workspace-write sandbox.
  */
@@ -14,6 +14,7 @@ const { REVIEW_SCHEMA, parseReviewOutput } = require('./prompt');
 const { FIX_SCHEMA, parseFixOutput } = require('./fix');
 
 const DEFAULT_MODEL = 'gpt-6.2-astra';
+const DEFAULT_REVIEW_REASONING_EFFORT = 'high';
 const DEFAULT_TIMEOUT_MS = 300_000;
 const MIN_TIMEOUT_MS = 30_000;
 const MAX_TIMEOUT_MS = 900_000;
@@ -56,7 +57,7 @@ const MCP_LIST_TIMEOUT_MS = 15_000;
  * longer sees user-level servers, a bare `<name>.enabled=false` would create an
  * entry without a transport and Codex rejects it; the override therefore
  * carries an inert stdio transport alongside enabled=false.
- * @param {{cwd: string, model: string, outputFile: string, schemaFile: string, mcpServers?: string[], sandbox?: string}} input
+ * @param {{cwd: string, model: string, reasoningEffort?: string, outputFile: string, schemaFile: string, mcpServers?: string[], sandbox?: string}} input
  * @returns {string[]}
  */
 function buildCodexArgs(input) {
@@ -73,6 +74,9 @@ function buildCodexArgs(input) {
   const writeLimits = sandbox === 'workspace-write'
     ? WORKSPACE_WRITE_LIMITS.flatMap((setting) => ['--config', setting])
     : [];
+  const effortOverride = input.reasoningEffort === undefined
+    ? []
+    : ['--config', `model_reasoning_effort=${JSON.stringify(input.reasoningEffort)}`];
   return [
     '--ask-for-approval', 'never',
     'exec',
@@ -82,6 +86,7 @@ function buildCodexArgs(input) {
     '--color', 'never',
     '--skip-git-repo-check',
     '-m', input.model,
+    ...effortOverride,
     '--config', 'web_search="disabled"',
     ...writeLimits,
     ...mcpDisables,
@@ -169,7 +174,7 @@ function readLastMessage(outputFile) {
  * Shared Codex exec runner: isolated environment, MCP servers disabled,
  * structured output enforced by `schema` and validated by `parse`.
  * @param {{prompt: string, cwd: string, model: string, timeoutMs: number}} input
- * @param {{task: string, sandbox: string, schema: object, parse: Function}} mode
+ * @param {{task: string, sandbox: string, schema: object, parse: Function, reasoningEffort?: string}} mode
  * @param {{spawnSync?: Function, env?: object, resolveCodexCommand?: Function}} deps
  */
 function runCodexExec(input, mode, deps) {
@@ -189,7 +194,8 @@ function runCodexExec(input, mode, deps) {
     fs.writeFileSync(schemaFile, JSON.stringify(mode.schema), 'utf8');
     const mcpServers = listConfiguredMcpServers(launcher, { spawnSync: spawn, env: environment });
     const args = buildCodexArgs({
-      cwd: input.cwd, model: input.model, outputFile, schemaFile, mcpServers, sandbox: mode.sandbox,
+      cwd: input.cwd, model: input.model, reasoningEffort: mode.reasoningEffort,
+      outputFile, schemaFile, mcpServers, sandbox: mode.sandbox,
     });
     const result = spawn(launcher.command, [...launcher.prefixArgs, ...args], {
       cwd: input.cwd,
@@ -213,13 +219,15 @@ function runCodexExec(input, mode, deps) {
 }
 
 /**
- * @param {{prompt: string, cwd: string, model: string, timeoutMs: number}} input
+ * @param {{prompt: string, cwd: string, model: string, timeoutMs: number, reasoningEffort?: string}} input
  * @param {{spawnSync?: Function, env?: object, resolveCodexCommand?: Function}} [deps]
  * @returns {object} Parsed review
  */
 function runCodexReview(input, deps = {}) {
+  const reasoningEffort = input.reasoningEffort ??
+    (input.model === DEFAULT_MODEL ? DEFAULT_REVIEW_REASONING_EFFORT : undefined);
   return runCodexExec(input, {
-    task: 'review', sandbox: 'read-only', schema: REVIEW_SCHEMA, parse: parseReviewOutput,
+    task: 'review', sandbox: 'read-only', schema: REVIEW_SCHEMA, parse: parseReviewOutput, reasoningEffort,
   }, deps);
 }
 
