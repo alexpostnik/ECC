@@ -55,11 +55,11 @@ function baseDeps(overrides = {}) {
 
 console.log('=== Testing scripts/astra-review.js ===\n');
 
-test('parseArgs defaults to uncommitted scope and gpt-6-astra', () => {
+test('parseArgs defaults to uncommitted scope and gpt-6.2-astra', () => {
   const options = cli.parseArgs([], {});
 
   assert.strictEqual(options.scope.kind, 'uncommitted');
-  assert.strictEqual(options.model, 'gpt-6-astra');
+  assert.strictEqual(options.model, 'gpt-6.2-astra');
   assert.strictEqual(options.consent, false);
 });
 
@@ -126,7 +126,7 @@ test('runCli returns 0 and a markdown report on PASS', () => {
   const code = cli.runCli(cli.parseArgs(['--consent-to-openai'], {}), deps);
 
   assert.strictEqual(code, cli.EXIT_PASS);
-  assert.ok(deps.stdout.text().includes('# Astra Review (gpt-6-astra)'));
+  assert.ok(deps.stdout.text().includes('# Astra Review (gpt-6.2-astra)'));
   assert.ok(deps.stdout.text().includes('**PASS**'));
 });
 
@@ -158,7 +158,7 @@ test('runCli passes model, prompt, and timeout through to the reviewer', () => {
   assert.ok(seen.prompt.includes('git show sha:<path>'));
 });
 
-const savedVerdict = JSON.stringify({ model: 'gpt-6-astra', verdict: 'FAIL', review: failingReview });
+const savedVerdict = JSON.stringify({ model: 'gpt-6.2-astra', verdict: 'FAIL', review: failingReview });
 const fixResult = { summary: 'fixed', fixed: [{ title: 'Bug', file: 'a.js', change: 'guard' }], skipped: [] };
 
 function fixDeps(overrides = {}) {
@@ -211,9 +211,9 @@ test('runCli fix mode sends the findings to Astra at the repo root and prints th
   assert.strictEqual(code, cli.EXIT_PASS);
   assert.strictEqual(readPath, '/tmp/v.json');
   assert.strictEqual(seen.cwd, '/repo-root');
-  assert.strictEqual(seen.model, 'gpt-6-astra');
+  assert.strictEqual(seen.model, 'gpt-6.2-astra');
   assert.ok(seen.prompt.includes('keep API'));
-  assert.ok(deps.stdout.text().includes('# Astra Fix (gpt-6-astra)'));
+  assert.ok(deps.stdout.text().includes('# Astra Fix (gpt-6.2-astra)'));
 });
 
 test('runCli fix mode --json prints the fix payload', () => {

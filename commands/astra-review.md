@@ -19,7 +19,7 @@ This command runs on **Opus** (`model: opus`). Opus orchestrates, verifies findi
 ## Prerequisites
 
 - Codex CLI installed and logged in with ChatGPT: `codex login`
-- `gpt-6-astra` available on the account (check with `codex` model picker; override with `ECC_ASTRA_MODEL`)
+- `gpt-6.2-astra` available on the account (check with `codex` model picker; override with `ECC_ASTRA_MODEL`)
 - Invoking this command is your consent to send the diff to OpenAI. Do not run it on code you are not allowed to share.
 
 ## Usage
@@ -101,7 +101,7 @@ After 3 rounds with remaining CRITICAL/HIGH findings, stop and hand the list to 
 
 ```
 ASTRA VERDICT: [PASS / FAIL (escalated)]
-Model:      gpt-6-astra
+Model:      gpt-6.2-astra
 Scope:      [uncommitted | base main | commit sha | N files]
 Rounds:     [N]/3
 Fixer:      [Fable | Astra (Fable usage limit) | Opus]

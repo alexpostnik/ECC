@@ -9,10 +9,12 @@ For repo navigation, surface ownership, and PR diff packet guidance, read
 
 | Task Type | Recommended Model |
 |-----------|------------------|
-| Routine coding, tests, formatting | GPT-6.1 Terra high |
-| Complex features, architecture | GPT-6.1 Sol high |
-| Debugging, refactoring | GPT-6.1 Sol high |
-| Security review | GPT-6 Astra high or max |
+| Routine coding, tests, formatting | GPT-6.2 Sol medium |
+| Complex features, architecture | GPT-6.2 Astra high |
+| Debugging, refactoring | GPT-6.2 Sol high |
+| Security review | GPT-6.2 Astra high or max |
+
+Use the [Codex subagent guidance](https://learn.chatgpt.com/docs/agent-configuration/subagents) as the baseline. For a GPT-6.2 parent, start with the same model and effort unless scope and risk justify another pair. Compare time, quality and usage per accepted task, including retries. These profiles are starting points for this fork.
 
 Before launching a child, check that the host supports the requested model and
 effort; these recommendations do not guarantee availability. Preserve explicit

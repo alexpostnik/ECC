@@ -13,7 +13,7 @@ const { spawnSync } = require('child_process');
 const { REVIEW_SCHEMA, parseReviewOutput } = require('./prompt');
 const { FIX_SCHEMA, parseFixOutput } = require('./fix');
 
-const DEFAULT_MODEL = 'gpt-6-astra';
+const DEFAULT_MODEL = 'gpt-6.2-astra';
 const DEFAULT_TIMEOUT_MS = 300_000;
 const MIN_TIMEOUT_MS = 30_000;
 const MAX_TIMEOUT_MS = 900_000;

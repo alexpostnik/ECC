@@ -18,7 +18,7 @@
  *                            Claude must verify the diff, run tests, and re-review
  *
  * Options:
- *   --model <slug>           default: gpt-6-astra (or ECC_ASTRA_MODEL)
+ *   --model <slug>           default: gpt-6.2-astra (or ECC_ASTRA_MODEL)
  *   --timeout-seconds <n>    30-900, default 300
  *   --instructions <text>    extra reviewer instructions
  *   --output <file>          also write the JSON verdict to <file>
